@@ -1,0 +1,2 @@
+[plugins."opsfromscratch-reduce-sum@opsfromscratch"]
+enabled = true

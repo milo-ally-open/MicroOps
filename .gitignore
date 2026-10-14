@@ -1,6 +1,7 @@
 # Generated builds and packages
 /build/
 /dist/
+/.codex/
 
 # Python
 __pycache__/

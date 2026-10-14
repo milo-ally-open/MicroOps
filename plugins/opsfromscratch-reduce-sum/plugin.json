@@ -1,0 +1,6 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "opsfromscratch-reduce-sum",
+  "version": "0.1.0",
+  "description": "A learning workflow for understanding and reviewing the reduce_sum operator in OpsFromScratch."
+}

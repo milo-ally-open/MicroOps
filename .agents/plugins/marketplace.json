@@ -1,0 +1,19 @@
+{
+  "name": "opsfromscratch",
+  "interface": {
+    "displayName": "OpsFromScratch"
+  },
+  "plugins": [
+    {
+      "name": "opsfromscratch-reduce-sum",
+      "source": {
+        "source": "local",
+        "path": "./plugins/opsfromscratch-reduce-sum"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      }
+    }
+  ]
+}

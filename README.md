@@ -9,6 +9,8 @@ OpsFromScratch 是一个用于学习 CUDA 与 Ascend C 并行计算、同时保�
 - `showcases/`：组合多个算子的应用示例。
 - `tests/`：跨算子测试。
 - `tools/`：统一构建、测试、benchmark 和打包入口。
+- `.agents/skills/`、`.agents/plugins/`、`plugins/`：可跟踪的项目级 Codex skills、marketplace 索引和插件包。
+- `.codex/`：本机项目配置与工作目录，已加入 `.gitignore`，不会提交。
 - `cmake/`：共享 CMake 配置。
 - `build/`、`dist/`：本地构建与打包输出，不纳入版本控制。
 
@@ -68,3 +70,7 @@ python tools/package.py --operator reduce_sum --backend cpu
 Visual Studio 等多配置生成器会将 Release demo 放在 `build/cpu/Release/`；单配置生成器直接放在 `build/cpu/`。
 
 benchmark 默认写入被忽略的 `build/benchmark_results.csv`；只有实际执行后才会包含测量数据。package 输出到 `dist/`，不修改源码目录。
+
+## Codex 项目扩展
+
+仓库级产物放在 `.agents/skills/` 和 `plugins/`，marketplace 索引在 `.agents/plugins/marketplace.json`；本地启用配置放在被忽略的 `.codex/config.toml`。`.codex/plugins/` 与 `.codex/skills/` 仅作为本机私有工作区，不是共享产物目录。当前包含 `add-operator` skill 和 `opsfromscratch-reduce-sum` 插件示例。目录与启用方式见 [`.agents/README.md`](.agents/README.md)。
