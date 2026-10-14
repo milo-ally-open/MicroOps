@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Build and run CPU reference tests, with explicit optional-backend status."""
+"""Configure, build, and run one operator backend's independent test project."""
 
 import argparse
 import subprocess
@@ -14,45 +14,35 @@ def run(command):
     try:
         return subprocess.run(command, cwd=ROOT).returncode
     except FileNotFoundError as error:
-        print("ERROR: required build tool was not found. Install CMake 3.21+ and a C++17 compiler.", file=sys.stderr)
+        print("ERROR: required build tool was not found. Install CMake 3.21+ and the selected backend toolchain.", file=sys.stderr)
         print("       " + str(error), file=sys.stderr)
         return 127
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--backend", choices=("cpu", "cuda", "ascendc"), default="cpu")
-    parser.add_argument("--build-root", type=Path, default=ROOT / "build")
+    parser.add_argument("--operator", choices=("add",), default="add")
+    parser.add_argument("--backend", choices=("cuda", "cann"), required=True)
+    parser.add_argument("--build-root", type=Path, default=ROOT / "build",
+                        help="test build root (default: build)")
     args = parser.parse_args()
     build_root = args.build_root if args.build_root.is_absolute() else (Path.cwd() / args.build_root).resolve()
+    test_project = ROOT / "operators" / args.operator / "tests" / args.backend
+    build_dir = build_root / args.operator / "tests" / args.backend
 
-    cpu_build = build_root / "cpu"
-    build_script = ROOT / "tools" / "build.py"
-    result = run([sys.executable, str(build_script), "--backend", "cpu", "--build-dir", str(cpu_build)])
-    if result != 0:
-        return result
-    result = run(["ctest", "--test-dir", str(cpu_build), "-C", "Release", "--output-on-failure"])
-    if result != 0:
-        print("CPU reference tests failed.", file=sys.stderr)
-        return result
-    print("CPU reference tests: PASS")
-
-    if args.backend == "cpu":
-        return 0
-
-    backend_build = build_root / args.backend
-    result = run([sys.executable, str(build_script), "--backend", args.backend, "--build-dir", str(backend_build)])
-    if result != 0:
-        print(f"{args.backend} backend configure/build: FAILED or unavailable (see the diagnostic above).", file=sys.stderr)
-        print("CPU reference test result remains PASS; no device test is counted as passed.", file=sys.stderr)
-        return result
-
-    if args.backend == "ascendc":
-        # Its CMake scaffold currently exits with a diagnostic, so reaching this
-        # branch would indicate that the scaffold has been replaced.
-        print("Ascend C backend built, but device correctness tests are not registered: SKIP")
-    else:
-        print("CUDA backend built, but device correctness tests are not registered: SKIP")
+    configure = run(["cmake", "-S", str(test_project), "-B", str(build_dir)])
+    if configure != 0:
+        print(f"Test project configure failed for operator={args.operator} backend={args.backend}.", file=sys.stderr)
+        return configure
+    built = run(["cmake", "--build", str(build_dir), "--config", "Release", "--parallel"])
+    if built != 0:
+        print(f"Test project build failed for operator={args.operator} backend={args.backend}.", file=sys.stderr)
+        return built
+    tested = run(["ctest", "--test-dir", str(build_dir), "-C", "Release", "--output-on-failure"])
+    if tested != 0:
+        print(f"Tests failed for operator={args.operator} backend={args.backend}.", file=sys.stderr)
+        return tested
+    print(f"CTest completed for operator={args.operator} backend={args.backend}; skipped suites are not passes.")
     return 0
 
 

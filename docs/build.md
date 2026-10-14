@@ -1,38 +1,56 @@
-# 构建与验证
+# 构建、测试与评估
 
-## 要求
+算子在 `operators/<op>/` 内独立配置。CUDA、CANN 交付件分别位于该算子根目录的 `cuda/` 和 `cann/`；对应测试工程位于 `tests/cuda/` 和 `tests/cann/`。本仓库不提供 CPU 算子后端。
+
+## 工具要求
 
 - CMake 3.21+
-- C++17 编译器
-- Python 3.9+（使用仓库统一脚本时）
-- 可选 CUDA/Ascend C 依赖仅在显式启用相应后端时需要
+- Python 3.9+（统一工具脚本）
+- CUDA：兼容的 CUDA Toolkit/nvcc、C++17 host 编译器，以及设备测试所需驱动/设备
+- CANN：匹配的 CANN 开发环境与 NPU；当前 add 后端和测试工程仍是 scaffold
 
-## CPU-only
+## CUDA add
 
-```powershell
-python tools/build.py --backend cpu
-python tools/test.py --backend cpu
+在 WSL/Linux 仓库根目录运行：
+
+```bash
+python3 tools/build.py --operator add --backend cuda
+python3 tools/test.py --operator add --backend cuda
+python3 tools/build.py --operator add --backend cuda --examples
 ```
 
-默认 CMake 配置只生成 `reduce_sum_reference` 和 CPU 测试。直接使用 CMake 时：
+直接构建算子交付件：
 
-```powershell
-cmake -S . -B build/cpu -DOPS_ENABLE_CUDA=OFF -DOPS_ENABLE_ASCENDC=OFF
-cmake --build build/cpu
-ctest --test-dir build/cpu --output-on-failure
+```bash
+cmake -S operators/add -B build/add/cuda \
+  -DOPS_ENABLE_CUDA=ON -DOPS_ENABLE_CANN=OFF
+cmake --build build/add/cuda --config Release
 ```
 
-## 独立后端构建
+测试工程单独位于 `operators/add/tests/cuda/`，构建输出位于 `build/add/tests/cuda/`。它直接引用 `operators/add/cuda/` 中的 kernel/host，并运行 correctness 与 memory suites。没有 `nvcc` 时配置明确失败；没有设备或驱动时对应测试明确 Skip。
 
-```powershell
-python tools/build.py --backend cuda
-python tools/build.py --backend ascendc
+## 性能评估
+
+性能程序由 CUDA 测试工程构建，测量和记录使用统一入口：
+
+```bash
+python3 tools/benchmark.py --operator add \
+  --sizes 1024,1048576,16777216 --iterations 100
 ```
 
-等价 preset 为 `cuda` 和 `ascendc`。这两个 preset 使用独立 build 目录。Ascend C 当前只有 scaffold，构建入口会停止并给出原因。CUDA 构建要求 CMake 能找到 CUDA 编译器和 Toolkit；当前 CUDA 源码未在本机验证。不要通过关闭依赖检查来声称构建成功。
+结果追加到 `operators/add/benchmarks/cuda/results/cuda.csv`，显存评估结果写入同目录的 `memory.csv`。新算子必须在自己的测试工程和元数据中登记对应的评估目标。
 
-## 测试、benchmark 和包
+## CANN 与打包
 
-`python tools/test.py` 会构建并运行 CTest。请求设备后端时，脚本分别报告 CPU 测试结果与未实现/不可运行的设备测试状态。`python tools/benchmark.py --backend cpu` 会实际运行 CPU benchmark，并将设备、编译器、运行时、输入规模和时间写入 CSV；没有运行的数据不生成测量行。`python tools/package.py --operator reduce_sum --backend cpu` 将所选实现、元数据和使用说明复制到 `dist/`。
+```bash
+python3 tools/build.py --operator add --backend cann
+python3 tools/test.py --operator add --backend cann
+```
 
-本机初始化时没有 CMake、Python、CUDA Toolkit、CANN/Ascend C 编译器或可确认的设备，因此无法报告编译、测试或性能结果。安装依赖后可按以上命令验证。
+目前以上 CANN 命令会以明确错误停止，因为 add 尚无 CANN 实现和测试 harness。不要将 scaffold 当作成功构建。CUDA 源码和测试工程可打包至 `dist/`：
+
+```bash
+python3 tools/package.py --operator add --backend cuda
+```
+
+此前在 WSL 上运行过 add CUDA v1 的 smoke test 和多规模 benchmark，记录保存在 `operators/add/benchmarks/cuda/results/cuda.csv`。目录布局及独立测试工程调整后，需在 CUDA 工具链可用时重新验证。

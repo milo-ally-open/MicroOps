@@ -1,76 +1,61 @@
 # OpsFromScratch
 
-OpsFromScratch 是一个用于学习 CUDA 与 Ascend C 并行计算、同时保持工业算子工程习惯的仓库。每个算子包含可验证的 CPU 参考实现、独立后端入口、测试、示例和可打包说明。当前没有任何 GPU/NPU 后端被本机验证为可用。
+OpsFromScratch 用于从零学习 CUDA 与 CANN 算子开发，并按可测试、可评估、可打包的方式组织设备算子工程。仓库不维护 CPU 算子后端。当前首个算子是 CUDA `add` v1；CANN 目录和测试入口仅为 scaffold。
 
 ## 目录概览
 
-- `operators/`：按算子组织实现、规格、测试、示例、benchmark 和动画源码。
-- `docs/`：仓库架构、构建和贡献约定。
-- `showcases/`：组合多个算子的应用示例。
-- `tests/`：跨算子测试。
-- `tools/`：统一构建、测试、benchmark 和打包入口。
-- `.agents/skills/`、`.agents/plugins/`、`plugins/`：可跟踪的项目级 Codex skills、marketplace 索引和插件包。
-- `.codex/`：本机项目配置与工作目录，已加入 `.gitignore`，不会提交。
-- `cmake/`：共享 CMake 配置。
-- `build/`、`dist/`：本地构建与打包输出，不纳入版本控制。
+- `operators/<op>/cuda/`、`operators/<op>/cann/`：各算子的设备 kernel、host 调度和后端构建配置。
+- `operators/<op>/tests/cuda/`、`operators/<op>/tests/cann/`：独立的正确性、内存、性能和可选 sanitizer 测试工程。
+- `operators/<op>/reference/`：论文和参考资料预留目录；当前只包含 `.gitkeep`。
+- `operators/<op>/docs/`：算子提案、规格、任务和用法。
+- `operators/<op>/benchmarks/<backend>/results/`：实际运行后生成或追加的评估记录。
+- `docs/sop.md`：统一算子开发工作流。
+- `tools/`：按算子与后端构建、测试、benchmark、打包的入口。
+- `.agents/`、`plugins/`：可跟踪的项目级 Codex 技能和插件产物；`.codex/` 是被忽略的本地配置目录。
+- `build/`、`dist/`：本地生成目录，已加入 `.gitignore`。
 
 ## 已有算子
 
-| 算子 | CPU 参考 | CUDA | Ascend C |
-|---|---|---|---|
-| `reduce_sum` | C++17 实现；本机尚未编译验证 | scaffold，未验证 | scaffold，未验证 |
+| 算子 | CUDA | CANN |
+|---|---|---|
+| `add` | v1 kernel/host 已存在；历史设备 smoke test 与 benchmark 有记录，新目录布局待复验 | scaffold，尚无实现或测试 harness |
 
-每个算子的完整定义和验收条件见 `operators/reduce_sum/docs/`。后端状态及入口见 `operators/reduce_sum/operator.yaml`。
+CUDA 状态见 [`operators/add/operator.yaml`](operators/add/operator.yaml)。历史记录不代表当前机器或新测试工程已验证。
 
-## CPU-only 快速开始
+## CUDA 构建、测试和 demo
 
-需要 CMake 3.21 或更高版本、C++17 编译器，以及运行统一脚本所需的 Python 3.9 或更高版本。默认配置只构建 CPU 参考实现，不查找 CUDA 或 CANN。
+在已安装 CUDA Toolkit、CMake 3.21+ 和 C++17 编译器的 WSL/Linux 环境中：
 
-```powershell
-python tools/build.py --backend cpu
-python tools/test.py --backend cpu
+```bash
+python3 tools/build.py --operator add --backend cuda
+python3 tools/test.py --operator add --backend cuda
+python3 tools/build.py --operator add --backend cuda --examples
+./build/add/cuda/add_demo
 ```
 
-也可以直接使用 CMake preset：
+`tools/test.py` 构建并运行 `operators/add/tests/cuda/` 独立测试工程，覆盖正确性和小规模显存评估。没有 CUDA 编译器时会明确报告配置失败；没有设备/驱动时设备用例会 Skip，不计为通过。
 
-```powershell
-cmake --preset cpu
-cmake --build --preset cpu
-ctest --preset cpu
+显式运行性能评估：
+
+```bash
+python3 tools/benchmark.py --operator add \
+  --sizes 1024,1048576,16777216 --iterations 100
 ```
 
-## 可选后端
+真实测量追加到 `operators/add/benchmarks/cuda/results/cuda.csv`；测试工程的内存评估记录追加到 `memory.csv`。结果记录设备、输入规模、编译器/runtime、资源读数和测量数据；未运行的数据不会生成。
 
-在 CUDA Toolkit、支持 CUDA 的 C++ 编译器及设备就绪后，可单独尝试：
+## CANN
 
-```powershell
-python tools/build.py --backend cuda
-python tools/test.py --backend cuda
+`operators/add/cann/` 与 `operators/add/tests/cann/` 当前只有 scaffold。构建和测试入口会明确停止并说明未实现，不会将其误报为可用后端。
+
+## 打包
+
+已实现后端可通过统一入口打包：
+
+```bash
+python3 tools/package.py --operator add --backend cuda
 ```
 
-在安装并配置 CANN/Ascend C 工具链后，可单独尝试：
+输出放在 `dist/`。若仓库尚无许可证文件，不应自行添加许可证。
 
-```powershell
-python tools/build.py --backend ascendc
-python tools/test.py --backend ascendc
-```
-
-两个后端默认关闭，不会影响 CPU-only 配置。当前 Ascend C 入口明确报告 scaffold 尚未实现；CUDA 源码也尚未在工具链和设备上验证。工具链或硬件相关检查失败时，命令会报告原因，不会把跳过的后端测试计为通过。
-
-## Demo、benchmark 与打包
-
-`operators/reduce_sum/examples/grayscale_mean.cpp` 展示如何先逐像素转换灰度，再通过 `reduce_sum` 汇总像素值并计算均值。
-
-```powershell
-python tools/build.py --backend cpu --examples
-python tools/benchmark.py --backend cpu --sizes 1024,1048576
-python tools/package.py --operator reduce_sum --backend cpu
-```
-
-Visual Studio 等多配置生成器会将 Release demo 放在 `build/cpu/Release/`；单配置生成器直接放在 `build/cpu/`。
-
-benchmark 默认写入被忽略的 `build/benchmark_results.csv`；只有实际执行后才会包含测量数据。package 输出到 `dist/`，不修改源码目录。
-
-## Codex 项目扩展
-
-仓库级产物放在 `.agents/skills/` 和 `plugins/`，marketplace 索引在 `.agents/plugins/marketplace.json`；本地启用配置放在被忽略的 `.codex/config.toml`。`.codex/plugins/` 与 `.codex/skills/` 仅作为本机私有工作区，不是共享产物目录。当前包含 `add-operator` skill 和 `opsfromscratch-reduce-sum` 插件示例。目录与启用方式见 [`.agents/README.md`](.agents/README.md)。
+更多细节见 [`docs/build.md`](docs/build.md)、[add 使用说明](operators/add/docs/usage.md) 和[算子开发 SOP](docs/sop.md)。

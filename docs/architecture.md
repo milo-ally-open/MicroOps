@@ -1,17 +1,17 @@
 # 仓库架构
 
-## 组织方式
+## 按算子组织
 
-仓库以算子为单位组织。每个 `operators/<name>/` 目录拥有自己的规格、CPU 参考实现、后端源文件、测试、benchmark、demo 和动画源码。跨算子示例放在 `showcases/`，仓库级构建入口放在根目录和 `tools/`。
+每个 `operators/<name>/` 是独立交付单元，包含规格文档、CUDA/CANN 后端目录、独立测试工程、benchmark 记录、示例和动画源码。后端直接放在算子根目录，不再额外套 `backends/`。仓库不维护 CPU 算子实现。
 
-## 依赖方向
+## 测试工程
 
-CPU 参考实现是语义基线，测试和示例链接该实现。CUDA 与 Ascend C 各自位于独立的 CMake 子目录，只有显式打开对应选项时才进入配置流程。默认配置不探测或链接可选工具链。
+`tests/cuda/` 和 `tests/cann/` 分别配置各自的工具链和运行环境，并直接使用同级设备实现作为被测对象。测试工程按 correctness、memory、performance 和可选 sanitizer 检查组织。评估结果由设备实测产生并记录环境信息；Skip、未实现和仅编译均不等于设备通过。
 
-## 当前能力边界
+## 参考资料
 
-`reduce_sum` 的 CPU C++17 源码和测试已建立，但当前环境没有 CMake、C++ 编译器或 Python，尚未完成编译或运行验证。CUDA 文件是待验证 scaffold；Ascend C 后端是占位 scaffold，开启时会明确失败并说明缺少实现。没有设备实测前，元数据不会把它们标成可用。
+`reference/` 预留给论文、引用和阅读资料，不用于存放算子实现。当前目录由 `.gitkeep` 占位。
 
-## 数据流
+## 当前能力
 
-算子调用方根据 `docs/spec.md` 的接口约定准备连续的 float32 输入，再选择 CPU 或已实现的设备后端。各后端遵循相同的空输入、空指针和数值精度约定。设备内存和 stream 的具体生命周期由对应后端 API 文档说明。
+`add` CUDA kernel/host 和历史设备测量记录已存在，但新的目录结构及独立测试工程尚待 CUDA 工具链复验。CANN 为 scaffold。具体状态以 `operators/add/operator.yaml` 为准。

@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
-"""Run real CPU reference measurements and append environment-tagged CSV rows."""
+"""Build and run the registered CUDA performance evaluation for an operator."""
 
 import argparse
 import csv
 import platform
+import shutil
 import subprocess
 import sys
 from datetime import datetime, timezone
@@ -12,9 +13,12 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 FIELDS = [
-    "timestamp_utc", "backend", "device", "input_size", "dtype", "compiler",
-    "compiler_version", "runtime", "iterations", "average_latency_us",
-    "throughput_elements_per_second",
+    "timestamp_utc", "operator", "backend", "device", "input_size", "dtype",
+    "compiler", "compiler_version", "runtime", "iterations", "working_set_bytes",
+    "device_memory_total_bytes", "device_memory_free_before_bytes",
+    "device_memory_free_after_alloc_bytes", "device_memory_free_after_release_bytes",
+    "allocation_status", "average_latency_us", "estimated_bytes_per_iteration",
+    "effective_bandwidth_GBps", "validation",
 ]
 
 
@@ -32,106 +36,120 @@ def run(command, capture=False):
     try:
         return subprocess.run(command, cwd=ROOT, text=True, capture_output=capture)
     except FileNotFoundError as error:
-        print("ERROR: required tool was not found; install CMake 3.21+ and a C++17 compiler.", file=sys.stderr)
+        print("ERROR: required tool was not found. Install CMake 3.21+ and CUDA Toolkit.", file=sys.stderr)
         print("       " + str(error), file=sys.stderr)
         return None
 
 
-def cache_value(cache_path, key):
-    prefix = key + ":"
-    if not cache_path.exists():
-        return ""
-    for line in cache_path.read_text(encoding="utf-8", errors="replace").splitlines():
-        if line.startswith(prefix):
-            return line.split("=", 1)[-1].strip()
-    return ""
-
-
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--backend", choices=("cpu",), default="cpu",
-                        help="only CPU reference benchmarking is implemented")
+    parser.add_argument("--operator", choices=("add",), default="add")
     parser.add_argument("--sizes", type=positive_ints, default=[1024, 1048576])
     parser.add_argument("--iterations", type=int, default=100)
-    parser.add_argument("--output", type=Path, default=ROOT / "build" / "benchmark_results.csv")
+    parser.add_argument("--output", type=Path,
+                        help="CSV output (default: operators/<op>/benchmarks/cuda/results/cuda.csv)")
+    parser.add_argument("--build-dir", type=Path,
+                        help="test-project build directory (default: build/<op>/tests/cuda-benchmark)")
+    parser.add_argument("--executable", type=Path, help="use an already-built benchmark executable")
     args = parser.parse_args()
     if args.iterations <= 0:
         parser.error("--iterations must be positive")
 
-    build_dir = ROOT / "build" / "benchmark-cpu"
-    build_script = ROOT / "tools" / "build.py"
-    built = run([sys.executable, str(build_script), "--backend", "cpu",
-                 "--build-dir", str(build_dir), "--benchmarks"])
-    if built is None:
-        return 127
-    if built.returncode != 0:
-        return built.returncode
-
-    cache = build_dir / "CMakeCache.txt"
-    compiler = cache_value(cache, "CMAKE_CXX_COMPILER") or cache_value(cache, "CMAKE_CXX_COMPILER:FILEPATH")
-    if not compiler:
-        # CMake cache keys already include the type before '=', so fall back to
-        # a direct lookup for common cache declarations.
-        for key in ("CMAKE_CXX_COMPILER:FILEPATH", "CMAKE_CXX_COMPILER:STRING"):
-            compiler = cache_value(cache, key)
-            if compiler:
-                break
-    compiler = compiler or "unknown (not reported by CMake)"
-    version = "unknown"
-    if compiler != "unknown (not reported by CMake)":
-        version_run = run([compiler, "--version"], capture=True)
-        if version_run is not None and version_run.returncode == 0:
-            version_lines = (version_run.stdout or version_run.stderr).splitlines()
-            if version_lines:
-                version = version_lines[0].strip()
-
-    executable_name = "reduce_sum_cpu_benchmark"
-    if platform.system() == "Windows":
-        executable_name += ".exe"
-    executable = build_dir / executable_name
-    if not executable.exists():
-        executable = build_dir / "Release" / executable_name
-    if not executable.exists():
-        print(f"ERROR: benchmark executable was not produced: {executable}", file=sys.stderr)
+    operator_root = ROOT / "operators" / args.operator
+    build_dir = args.build_dir or ROOT / "build" / args.operator / "tests" / "cuda-benchmark"
+    if not build_dir.is_absolute():
+        build_dir = (Path.cwd() / build_dir).resolve()
+    executable = args.executable
+    if executable is None:
+        configured = run(["cmake", "-S", str(operator_root / "tests" / "cuda"), "-B", str(build_dir),
+                          "-DOPS_BUILD_PERFORMANCE=ON"])
+        if configured is None:
+            return 127
+        if configured.returncode != 0:
+            return configured.returncode
+        built = run(["cmake", "--build", str(build_dir), "--config", "Release",
+                     "--target", "add_cuda_benchmark", "--parallel"])
+        if built is None:
+            return 127
+        if built.returncode != 0:
+            return built.returncode
+        executable = build_dir / "add_cuda_benchmark"
+        if platform.system() == "Windows":
+            executable = executable.with_suffix(".exe")
+        if not executable.exists():
+            executable = build_dir / "Release" / executable.name
+    elif not executable.is_absolute():
+        executable = (Path.cwd() / executable).resolve()
+    if not executable.is_file():
+        print(f"ERROR: CUDA benchmark executable was not found: {executable}", file=sys.stderr)
         return 2
 
-    device_name = platform.processor() or platform.uname().processor or platform.machine() or "unknown CPU"
-    device = f"CPU: {device_name} ({platform.machine()})"
-    runtime = f"C++17 std::chrono::steady_clock; {platform.platform()}"
+    nvcc = shutil.which("nvcc")
+    compiler_version = "unavailable"
+    if nvcc:
+        version = run([nvcc, "--version"], capture=True)
+        if version is not None and version.returncode == 0:
+            matches = [line.strip() for line in (version.stdout or version.stderr).splitlines()
+                       if "release" in line.lower()]
+            if matches:
+                compiler_version = matches[-1]
+
     timestamp = datetime.now(timezone.utc).isoformat(timespec="seconds")
     rows = []
     for size in args.sizes:
+        if size > 2147483647:
+            print(f"ERROR: CUDA add v1 accepts N <= INT_MAX; got {size}.", file=sys.stderr)
+            return 2
         measured = run([str(executable), str(size), str(args.iterations)], capture=True)
         if measured is None:
             return 127
-        if measured.returncode != 0:
-            print(measured.stderr, file=sys.stderr)
-            return measured.returncode
+        fields = measured.stdout.strip().split("\t")
+        if len(fields) != 14 or fields[0] != "CUDA_RESULT":
+            print(measured.stderr or f"ERROR: unexpected CUDA benchmark output: {measured.stdout!r}", file=sys.stderr)
+            return measured.returncode or 2
         try:
-            fields = measured.stdout.strip().split(",")
-            measured_size, measured_iterations = int(fields[0]), int(fields[1])
-            average_us = float(fields[2])
-        except (IndexError, ValueError):
-            print(f"ERROR: unexpected benchmark output: {measured.stdout!r}", file=sys.stderr)
+            device, runtime_version, driver_version = fields[1:4]
+            measured_size, working_set = int(fields[4]), int(fields[5])
+            memory_free_before, memory_total = int(fields[6]), int(fields[7])
+            memory_free_after_alloc, memory_free_after_release = int(fields[8]), int(fields[9])
+            allocation_status = fields[10]
+            average_latency, bandwidth = float(fields[11]), float(fields[12])
+            validation = fields[13]
+        except ValueError:
+            print(f"ERROR: malformed CUDA benchmark output: {measured.stdout!r}", file=sys.stderr)
             return 2
-        if measured_size != size or measured_iterations != args.iterations or average_us <= 0:
-            print("ERROR: benchmark returned inconsistent or non-positive measurement data.", file=sys.stderr)
+        if measured_size != size:
+            print("ERROR: CUDA benchmark returned an unexpected input size.", file=sys.stderr)
             return 2
+        allocation_ok = allocation_status == "allocated"
+        if allocation_ok and (measured.returncode != 0 or average_latency <= 0 or bandwidth <= 0 or validation != "passed"):
+            print(f"ERROR: CUDA evaluation failed for N={size}: {validation}", file=sys.stderr)
+            return measured.returncode or 1
         rows.append({
-            "timestamp_utc": timestamp,
-            "backend": "cpu_reference",
-            "device": device,
-            "input_size": measured_size,
-            "dtype": "float32",
-            "compiler": compiler,
-            "compiler_version": version,
-            "runtime": runtime,
-            "iterations": measured_iterations,
-            "average_latency_us": f"{average_us:.6f}",
-            "throughput_elements_per_second": f"{measured_size / (average_us * 1.0e-6):.3f}",
+            "timestamp_utc": timestamp, "operator": args.operator, "backend": "cuda",
+            "device": device, "input_size": measured_size, "dtype": "float32",
+            "compiler": "nvcc", "compiler_version": compiler_version,
+            "runtime": f"CUDA Runtime {runtime_version}; driver API {driver_version}",
+            "iterations": args.iterations, "working_set_bytes": working_set,
+            "device_memory_total_bytes": memory_total,
+            "device_memory_free_before_bytes": memory_free_before,
+            "device_memory_free_after_alloc_bytes": memory_free_after_alloc,
+            "device_memory_free_after_release_bytes": memory_free_after_release,
+            "allocation_status": allocation_status,
+            "average_latency_us": f"{average_latency:.6f}" if allocation_ok else "",
+            "estimated_bytes_per_iteration": working_set,
+            "effective_bandwidth_GBps": f"{bandwidth:.6f}" if allocation_ok else "",
+            "validation": validation,
         })
+        if not allocation_ok:
+            print(f"WARNING: N={size} allocation did not fit: {allocation_status}", file=sys.stderr)
+        elif measured.returncode != 0:
+            print(measured.stderr or f"CUDA benchmark exited {measured.returncode}", file=sys.stderr)
+            return measured.returncode
 
-    output = args.output if args.output.is_absolute() else (Path.cwd() / args.output).resolve()
+    output = args.output or (operator_root / "benchmarks" / "cuda" / "results" / "cuda.csv")
+    if not output.is_absolute():
+        output = (Path.cwd() / output).resolve()
     output.parent.mkdir(parents=True, exist_ok=True)
     write_header = not output.exists() or output.stat().st_size == 0
     with output.open("a", newline="", encoding="utf-8") as stream:
@@ -139,7 +157,7 @@ def main():
         if write_header:
             writer.writeheader()
         writer.writerows(rows)
-    print(f"Recorded {len(rows)} real CPU measurement(s) in {output}")
+    print(f"Recorded {len(rows)} real CUDA evaluation row(s) in {output}")
     return 0
 
 
