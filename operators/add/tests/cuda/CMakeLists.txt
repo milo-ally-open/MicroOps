@@ -12,7 +12,7 @@ find_package(CUDAToolkit REQUIRED)
 include(CTest)
 
 get_filename_component(ADD_OPERATOR_ROOT "${CMAKE_CURRENT_LIST_DIR}/../.." ABSOLUTE)
-add_subdirectory("${ADD_OPERATOR_ROOT}/cuda" "${CMAKE_CURRENT_BINARY_DIR}/operator_cuda")
+add_subdirectory("${ADD_OPERATOR_ROOT}/src/cuda" "${CMAKE_CURRENT_BINARY_DIR}/operator_cuda")
 
 add_executable(add_cuda_correctness_test correctness/add_cuda_test.cu)
 target_link_libraries(add_cuda_correctness_test PRIVATE add_cuda CUDA::cudart)
@@ -37,7 +37,7 @@ set_tests_properties(add_cuda_memory_eval PROPERTIES SKIP_RETURN_CODE 77)
 option(OPS_BUILD_PERFORMANCE "Build the CUDA performance evaluation executable" OFF)
 if(OPS_BUILD_PERFORMANCE)
     add_executable(add_cuda_benchmark performance/add_cuda_benchmark.cu)
-    target_include_directories(add_cuda_benchmark PRIVATE "${ADD_OPERATOR_ROOT}/cuda/include")
+    target_include_directories(add_cuda_benchmark PRIVATE "${ADD_OPERATOR_ROOT}/src/cuda/include")
     target_link_libraries(add_cuda_benchmark PRIVATE add_cuda CUDA::cudart)
     set_target_properties(add_cuda_benchmark PROPERTIES
         CUDA_STANDARD 17 CUDA_STANDARD_REQUIRED ON CUDA_EXTENSIONS OFF)

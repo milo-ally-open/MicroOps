@@ -1,6 +1,6 @@
 # 构建、测试与评估
 
-算子在 `operators/<op>/` 内独立配置。CUDA、CANN 交付件分别位于该算子根目录的 `cuda/` 和 `cann/`；对应测试工程位于 `tests/cuda/` 和 `tests/cann/`。本仓库不提供 CPU 算子后端。
+算子在 `operators/<op>/` 内独立配置。CUDA、CANN 交付件分别位于该算子的 `src/cuda/` 和 `src/cann/`；对应测试工程位于 `tests/cuda/` 和 `tests/cann/`。本仓库不提供 CPU 算子后端。
 
 ## 工具要求
 
@@ -14,9 +14,9 @@
 在 WSL/Linux 仓库根目录运行：
 
 ```bash
-python3 tools/build.py --operator add --backend cuda
-python3 tools/test.py --operator add --backend cuda
-python3 tools/build.py --operator add --backend cuda --examples
+python3 tools/ops.py build --operator add --backend cuda
+python3 tools/ops.py test --operator add --backend cuda
+python3 tools/ops.py build --operator add --backend cuda --examples
 ```
 
 直接构建算子交付件：
@@ -27,14 +27,14 @@ cmake -S operators/add -B build/add/cuda \
 cmake --build build/add/cuda --config Release
 ```
 
-测试工程单独位于 `operators/add/tests/cuda/`，构建输出位于 `build/add/tests/cuda/`。它直接引用 `operators/add/cuda/` 中的 kernel/host，并运行 correctness 与 memory suites。没有 `nvcc` 时配置明确失败；没有设备或驱动时对应测试明确 Skip。
+测试工程单独位于 `operators/add/tests/cuda/`，构建输出位于 `build/add/tests/cuda/`。它直接引用 `operators/add/src/cuda/` 中的 kernel/host，并运行 correctness 与 memory suites。没有 `nvcc` 时配置明确失败；没有设备或驱动时对应测试明确 Skip。
 
 ## 性能评估
 
 性能程序由 CUDA 测试工程构建，测量和记录使用统一入口：
 
 ```bash
-python3 tools/benchmark.py --operator add \
+python3 tools/ops.py benchmark --operator add \
   --sizes 1024,1048576,16777216 --iterations 100
 ```
 
@@ -43,14 +43,14 @@ python3 tools/benchmark.py --operator add \
 ## CANN 与打包
 
 ```bash
-python3 tools/build.py --operator add --backend cann
-python3 tools/test.py --operator add --backend cann
+python3 tools/ops.py build --operator add --backend cann
+python3 tools/ops.py test --operator add --backend cann
 ```
 
 目前以上 CANN 命令会以明确错误停止，因为 add 尚无 CANN 实现和测试 harness。不要将 scaffold 当作成功构建。CUDA 源码和测试工程可打包至 `dist/`：
 
 ```bash
-python3 tools/package.py --operator add --backend cuda
+python3 tools/ops.py package --operator add --backend cuda
 ```
 
 此前在 WSL 上运行过 add CUDA v1 的 smoke test 和多规模性能评估，记录保存在 `operators/add/tests/cuda/performance/results/cuda.csv`。目录布局及独立测试工程调整后，需在 CUDA 工具链可用时重新验证。

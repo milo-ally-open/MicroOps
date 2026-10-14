@@ -22,11 +22,11 @@ if(OPS_ENABLE_CUDA)
     endif()
     enable_language(CUDA)
     find_package(CUDAToolkit REQUIRED)
-    add_subdirectory(cuda)
+    add_subdirectory(src/cuda)
 
     if(OPS_BUILD_EXAMPLES)
-        add_executable(add_demo examples/add_demo.cu)
-        target_include_directories(add_demo PRIVATE cuda/include)
+        add_executable(add_demo examples/cuda/add_demo.cu)
+        target_include_directories(add_demo PRIVATE src/cuda/include)
         target_link_libraries(add_demo PRIVATE add_cuda CUDA::cudart)
         set_target_properties(add_demo PROPERTIES
             CUDA_STANDARD 17
@@ -36,5 +36,5 @@ if(OPS_ENABLE_CUDA)
 endif()
 
 if(OPS_ENABLE_CANN)
-    add_subdirectory(cann)
+    add_subdirectory(src/cann)
 endif()

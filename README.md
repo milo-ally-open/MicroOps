@@ -4,12 +4,12 @@ OpsFromScratch 用于从零学习 CUDA 与 CANN 算子开发，并按可测试�
 
 ## 目录概览
 
-- `operators/<op>/cuda/`、`operators/<op>/cann/`：各算子的设备 kernel、host 调度和后端构建配置。
+- `operators/<op>/src/cuda/`、`operators/<op>/src/cann/`：各算子的设备 kernel、host 调度、头文件和后端构建配置。
 - `operators/<op>/tests/cuda/`、`operators/<op>/tests/cann/`：独立的正确性、内存和性能评估工程；结果保存在对应 suite 的 `results/` 中。
-- `operators/<op>/reference/`：论文和参考资料预留目录；当前只包含 `.gitkeep`。
-- `operators/<op>/docs/`：算子提案、规格、任务和用法。
+- `operators/<op>/docs/`：算子提案、规格、任务、用法、学习笔记和论文参考资料；`notes/` 与 `reference/` 分开放置。
+- `operators/<op>/examples/{cuda,cann}/`、`operators/<op>/animation/`：按后端组织的小型示例和动画源码。
 - `docs/sop.md`：统一算子开发工作流。
-- `tools/`：按算子与后端构建、测试、benchmark、打包的入口。
+- `tools/ops.py`：统一的构建、测试、性能评估和打包命令。
 - `.agents/`、`plugins/`：可跟踪的项目级 Codex 技能和插件产物；`.codex/` 是被忽略的本地配置目录。
 - `build/`、`dist/`：本地生成目录，已加入 `.gitignore`。
 
@@ -26,18 +26,18 @@ CUDA 状态见 [`operators/add/operator.yaml`](operators/add/operator.yaml)。�
 在已安装 CUDA Toolkit、CMake 3.21+ 和 C++17 编译器的 WSL/Linux 环境中：
 
 ```bash
-python3 tools/build.py --operator add --backend cuda
-python3 tools/test.py --operator add --backend cuda
-python3 tools/build.py --operator add --backend cuda --examples
+python3 tools/ops.py build --operator add --backend cuda
+python3 tools/ops.py test --operator add --backend cuda
+python3 tools/ops.py build --operator add --backend cuda --examples
 ./build/add/cuda/add_demo
 ```
 
-`tools/test.py` 构建并运行 `operators/add/tests/cuda/` 独立测试工程，覆盖正确性和小规模显存评估。没有 CUDA 编译器时会明确报告配置失败；没有设备/驱动时设备用例会 Skip，不计为通过。
+`tools/ops.py test` 构建并运行 `operators/add/tests/cuda/` 独立测试工程，覆盖正确性和小规模显存评估。没有 CUDA 编译器时会明确报告配置失败；没有设备/驱动时设备用例会 Skip，不计为通过。
 
 显式运行性能评估：
 
 ```bash
-python3 tools/benchmark.py --operator add \
+python3 tools/ops.py benchmark --operator add \
   --sizes 1024,1048576,16777216 --iterations 100
 ```
 
@@ -45,14 +45,14 @@ python3 tools/benchmark.py --operator add \
 
 ## CANN
 
-`operators/add/cann/` 与 `operators/add/tests/cann/` 当前只有 scaffold。构建和测试入口会明确停止并说明未实现，不会将其误报为可用后端。
+`operators/add/src/cann/` 与 `operators/add/tests/cann/` 当前只有 scaffold。构建和测试入口会明确停止并说明未实现，不会将其误报为可用后端。
 
 ## 打包
 
 已实现后端可通过统一入口打包：
 
 ```bash
-python3 tools/package.py --operator add --backend cuda
+python3 tools/ops.py package --operator add --backend cuda
 ```
 
 输出放在 `dist/`。若仓库尚无许可证文件，不应自行添加许可证。

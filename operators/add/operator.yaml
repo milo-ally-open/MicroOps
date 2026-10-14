@@ -3,15 +3,15 @@ version: 0.1.0
 backends:
   cuda:
     status: device_tested_cmake_unverified
-    kernel: cuda/kernel/add_kernel.cu
-    host: cuda/host/add_cuda.cu
+    kernel: src/cuda/kernel/add_kernel.cu
+    host: src/cuda/host/add_cuda.cu
     build: CMakeLists.txt
     test_project: tests/cuda/CMakeLists.txt
   cann:
     status: scaffold
-    kernel: cann/kernel/
-    host: cann/host/
-    build: cann/CMakeLists.txt
+    kernel: src/cann/kernel/
+    host: src/cann/host/
+    build: src/cann/CMakeLists.txt
     test_project: tests/cann/CMakeLists.txt
 tests:
   cuda_correctness: tests/cuda/correctness/add_cuda_test.cu
@@ -20,7 +20,7 @@ tests:
 test_results:
   cuda_performance: tests/cuda/performance/results/cuda.csv
   cuda_memory: tests/cuda/memory/results/memory.csv
-demo: examples/add_demo.cu
+demo: examples/cuda/add_demo.cu
 docs:
   proposal: docs/proposal.md
   spec: docs/spec.md

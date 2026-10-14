@@ -18,17 +18,17 @@ cmake --version
 
 先在 `operators/<op>/docs/` 明确数学定义、输入输出、布局、dtype、shape、合法范围、边界行为、精度/容差、别名规则、支持后端和验收标准，再开始实现。`operator.yaml` 只登记工具需要的版本、后端状态、源文件、测试工程和 demo 入口，不复制完整规格。
 
-`operators/<op>/reference/` 预留给论文、引用资料和阅读笔记，目前以 `.gitkeep` 保留目录；它不是 CPU 参考实现目录。正确性期望值由测试工程内的独立校验逻辑提供，不形成 CPU 算子交付后端。
+`operators/<op>/docs/reference/` 用于论文和引用资料，`operators/<op>/docs/notes/` 用于学习与实现笔记；它们不是 CPU 参考实现目录。正确性期望值由测试工程内的独立校验逻辑提供，不形成 CPU 算子交付后端。
 
 **add v1 契约示例：**连续 float32 向量满足 `C[i] = A[i] + B[i]`。输入输出 shape 为 `[N]`，不支持 stride/broadcast。`N=0` 不访问指针也不发射 kernel；非空指针、`N` 上限和 `1e-6` 验收容差写入 spec。
 
 ## 3. 建立算子目录和后端交付件
 
-每个算子直接在根目录放置 `cuda/` 和 `cann/`，不再套 `backends/`。按需建立 `kernel/`、`host/` 和后端构建文件；独立的后端测试工程放在 `tests/cuda/`、`tests/cann/`。正确性、内存和性能评估及其结果都归入对应测试工程，例如 `tests/cuda/performance/results/`。同时维护 `docs/`、`examples/` 和 `animation/`。
+每个算子的设备源码放在 `src/cuda/` 和 `src/cann/`，按需建立 `kernel/`、`host/`、`include/` 和后端构建文件；独立的后端测试工程放在 `tests/cuda/`、`tests/cann/`。正确性、内存和性能评估及其结果都归入对应测试工程，例如 `tests/cuda/performance/results/`。示例按后端放在 `examples/cuda/`、`examples/cann/`，动画源码放在 `animation/`；提案、规格、任务、用法、笔记和参考资料统一放在 `docs/` 下。
 
 CUDA 与 CANN 的 kernel/host 是各自后端的真实交付件。一个后端缺少实现时，相关源码和测试目录只标记为 scaffold，构建和测试入口须明确失败或不可运行。构建产物、测试临时文件与动画视频只放在忽略的 `build/`、`dist/` 或媒体输出目录。
 
-**add v1：**`cuda/kernel/add_kernel.cu` 是用户给出的单线程单元素 kernel；`cuda/host/add_cuda.cu` 校验参数、计算 launch grid 并在调用方 stream 上启动它。`cann/` 只保留 scaffold，不声称实现了 add。
+**add v1：**`src/cuda/kernel/add_kernel.cu` 是用户给出的单线程单元素 kernel；`src/cuda/host/add_cuda.cu` 校验参数、计算 launch grid 并在调用方 stream 上启动它。`src/cann/` 只保留 scaffold，不声称实现了 add。
 
 ## 4. 实现后端并建立测试工程
 
@@ -47,8 +47,8 @@ CUDA 与 CANN 的 kernel/host 是各自后端的真实交付件。一个后端�
 按同一入口选择算子和后端，先构建交付件，再运行独立测试工程：
 
 ```bash
-python3 tools/build.py --operator add --backend cuda
-python3 tools/test.py --operator add --backend cuda
+python3 tools/ops.py build --operator add --backend cuda
+python3 tools/ops.py test --operator add --backend cuda
 ```
 
 可以直接对算子根目录运行 CMake，也可以独立配置测试工程；具体选项由对应 CMake 文件和算子 `docs/usage.md` 维护。使用分开的构建目录，记录 configure、compile、test 三个阶段和工具链版本。关闭或未选择的后端不应成为已验证状态。
@@ -68,7 +68,7 @@ python3 tools/test.py --operator add --backend cuda
 运行 add CUDA 性能评估：
 
 ```bash
-python3 tools/benchmark.py --operator add \
+python3 tools/ops.py benchmark --operator add \
   --sizes 1024,1048576,16777216 --iterations 100
 ```
 
@@ -79,7 +79,7 @@ python3 tools/benchmark.py --operator add \
 打包命令只接受确实实现并登记的后端：
 
 ```bash
-python3 tools/package.py --operator add --backend cuda
+python3 tools/ops.py package --operator add --backend cuda
 ```
 
 包放入 `dist/`，包括所选后端交付件、测试工程、必要元数据及使用说明。源码包不等同于已编译二进制包。提交前运行可用的正确性测试、检查包文件清单和 `git diff --check`，并分别汇报 PASS、FAIL、SKIP 与未能验证的部分。
