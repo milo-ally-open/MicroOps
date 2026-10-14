@@ -1,0 +1,36 @@
+# Generated builds and packages
+/build/
+/dist/
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# CMake and native build products
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+CTestTestfile.cmake
+Makefile
+*.obj
+*.o
+*.a
+*.lib
+*.so
+*.dll
+*.exe
+*.pdb
+
+# IDE / OS
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+
+# Manim renders and transient media; keep scene source in operators/*/animation
+media/
+**/animation/media/
+
+\n

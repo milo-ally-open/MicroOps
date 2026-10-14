@@ -1,0 +1,50 @@
+{
+  "version": 3,
+  "cmakeMinimumRequired": {
+    "major": 3,
+    "minor": 21,
+    "patch": 0
+  },
+  "configurePresets": [
+    {
+      "name": "cpu",
+      "displayName": "CPU reference",
+      "binaryDir": "${sourceDir}/build/cpu",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "OPS_ENABLE_CUDA": "OFF",
+        "OPS_ENABLE_ASCENDC": "OFF",
+        "OPS_BUILD_TESTS": "ON"
+      }
+    },
+    {
+      "name": "cuda",
+      "displayName": "CUDA backend (unverified scaffold)",
+      "inherits": "cpu",
+      "binaryDir": "${sourceDir}/build/cuda",
+      "cacheVariables": {
+        "OPS_ENABLE_CUDA": "ON"
+      }
+    },
+    {
+      "name": "ascendc",
+      "displayName": "Ascend C backend (scaffold)",
+      "inherits": "cpu",
+      "binaryDir": "${sourceDir}/build/ascendc",
+      "cacheVariables": {
+        "OPS_ENABLE_ASCENDC": "ON"
+      }
+    }
+  ],
+  "buildPresets": [
+    { "name": "cpu", "configurePreset": "cpu", "configuration": "Release" },
+    { "name": "cuda", "configurePreset": "cuda", "configuration": "Release" },
+    { "name": "ascendc", "configurePreset": "ascendc", "configuration": "Release" }
+  ],
+  "testPresets": [
+    { "name": "cpu", "configurePreset": "cpu", "configuration": "Release", "output": { "outputOnFailure": true } },
+    { "name": "cuda", "configurePreset": "cuda", "configuration": "Release", "output": { "outputOnFailure": true } },
+    { "name": "ascendc", "configurePreset": "ascendc", "configuration": "Release", "output": { "outputOnFailure": true } }
+  ]
+}
+\n
