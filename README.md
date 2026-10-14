@@ -9,7 +9,7 @@ OpsFromScratch 用于学习 CUDA 与 CANN 并行计算，并以可测试、可�
 - operators/<op>/docs/：该算子的提案、规格、任务和用法文档。
 - operators/<op>/examples/、operators/<op>/animation/：小型 demo 和动画源码。
 - docs/sop.md：通用算子开发工作流。
-- tools/ops.py：统一的构建、测试、性能评估和打包入口。
+- tools/operator_cuda.py、tools/operator_cann.py：分别用于 CUDA 和 CANN 的构建、测试、性能评估和打包；共享逻辑位于 tools/operator_common.py。
 - .agents/、plugins/：可跟踪的项目级 Codex 技能和插件产物；.codex/ 是被忽略的本地配置目录。
 - build/、dist/：本地生成目录，已加入 .gitignore。
 
@@ -22,32 +22,35 @@ OpsFromScratch 用于学习 CUDA 与 CANN 并行计算，并以可测试、可�
 查看 YAML 配置中的可选源码文件：
 
     python3 -m pip install -r requirements.txt
-    python3 tools/ops.py list operators/add/operator.yaml
+    python3 tools/operator_cuda.py list operators/add/operator.yaml
+    python3 tools/operator_cann.py list operators/add/operator.yaml
 
 ## CPU-only 快速开始
 
 CPU-only 主机可查看和打包源码；不会因此安装或调用 CUDA/CANN 工具链。仓库当前没有 CPU 算子执行后端，因此设备测试需对应 SDK 与硬件。
 
     python3 -m pip install -r requirements.txt
-    python3 tools/ops.py list operators/add/operator.yaml
-    python3 tools/ops.py package operators/add/operator.yaml
+    python3 tools/operator_cuda.py list operators/add/operator.yaml
+    python3 tools/operator_cann.py list operators/add/operator.yaml
+    python3 tools/operator_cuda.py package operators/add/operator.yaml
+    python3 tools/operator_cann.py package operators/add/operator.yaml
 
 ## CUDA 环境
 
 需要 CUDA Toolkit/nvcc、CMake 3.21+ 和 C++17 host 编译器：
 
-    python3 tools/ops.py build operators/add/operator.yaml --backend cuda --examples
-    python3 tools/ops.py test operators/add/operator.yaml --backend cuda
-    python3 tools/ops.py benchmark operators/add/operator.yaml --backend cuda
+    python3 tools/operator_cuda.py build operators/add/operator.yaml --examples
+    python3 tools/operator_cuda.py test operators/add/operator.yaml
+    python3 tools/operator_cuda.py benchmark operators/add/operator.yaml
     ./build/add/cuda/add_kernel_v2__add_host_v2/add_demo
 
 ## CANN 环境
 
 需要目标机上的 CANN toolkit、bisheng、ACL runtime、CMake 3.21+ 和可用 Ascend 设备。在 CANN 环境加载后端环境脚本，例如 source <CANN>/set_env.sh：
 
-    python3 tools/ops.py build operators/add/operator.yaml --backend cann --examples
-    python3 tools/ops.py test operators/add/operator.yaml --backend cann
-    python3 tools/ops.py benchmark operators/add/operator.yaml --backend cann
+    python3 tools/operator_cann.py build operators/add/operator.yaml --examples
+    python3 tools/operator_cann.py test operators/add/operator.yaml
+    python3 tools/operator_cann.py benchmark operators/add/operator.yaml
     ./build/add/cann/add_kernel_v1__add_host_v1/add_demo
 
 CANN v1 是单元素标量循环，v2 每轮展开处理四个元素；两者均使用 ACL host 调度并针对 dav-m300。v2 是指令级并行候选，不声称使用 SIMD 指令或在其他 SoC/SDK 上可用。具体设备和实测结果写在 operators/add/operator.yaml 与 operators/add/tests/cann/ 的记录中。没有 toolkit/device 时构建或设备测试会明确失败/Skip，不把它们算作通过。

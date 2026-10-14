@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Config-driven build, test, benchmark, and packaging entry point."""
+"""Shared implementation for the CUDA and CANN operator tools."""
 
 import argparse
 import csv
@@ -39,33 +39,35 @@ def add_config_argument(parser):
 
 def add_selection_arguments(parser):
     add_config_argument(parser)
-    parser.add_argument("--backend", help="override the backend selected in operator.yaml")
     parser.add_argument("--kernel", help="override the kernel filename selected in operator.yaml")
     parser.add_argument("--host", help="override the host filename selected in operator.yaml")
 
 
-def make_parser():
+def make_parser(backend_name, backend_profile):
     parser = argparse.ArgumentParser(description=__doc__)
     commands = parser.add_subparsers(dest="command", required=True)
 
-    listing = commands.add_parser("list", help="list source files from an operator configuration")
+    listing = commands.add_parser("list", help=f"list {backend_name.upper()} source files")
     add_config_argument(listing)
-    listing.add_argument("--backend", help="show one backend only")
+    listing.set_defaults(backend=backend_name, backend_profile=backend_profile)
     listing.set_defaults(handler=list_sources)
 
-    build = commands.add_parser("build", help="configure and build the selected backend")
+    build = commands.add_parser("build", help=f"configure and build the {backend_name.upper()} backend")
     add_selection_arguments(build)
+    build.set_defaults(backend=backend_name, backend_profile=backend_profile)
     build.add_argument("--build-dir", type=Path, help="override the configured build directory")
     build.add_argument("--examples", action="store_true", help="also build configured examples")
     build.set_defaults(handler=build_backend)
 
-    test = commands.add_parser("test", help="build and run the configured backend test project")
+    test = commands.add_parser("test", help=f"build and run the {backend_name.upper()} test project")
     add_selection_arguments(test)
+    test.set_defaults(backend=backend_name, backend_profile=backend_profile)
     test.add_argument("--build-dir", type=Path, help="override the configured test build directory")
     test.set_defaults(handler=test_backend)
 
-    benchmark = commands.add_parser("benchmark", help="run the configured performance evaluation")
+    benchmark = commands.add_parser("benchmark", help=f"run the {backend_name.upper()} performance evaluation")
     add_selection_arguments(benchmark)
+    benchmark.set_defaults(backend=backend_name, backend_profile=backend_profile)
     benchmark.add_argument("--sizes", type=positive_ints,
                            help="override benchmark.sizes from operator.yaml")
     benchmark.add_argument("--iterations", type=positive_int,
@@ -75,8 +77,9 @@ def make_parser():
     benchmark.add_argument("--executable", type=Path, help="use an already-built evaluation executable")
     benchmark.set_defaults(handler=run_benchmark)
 
-    package = commands.add_parser("package", help="package configured backend files under dist/")
+    package = commands.add_parser("package", help=f"package {backend_name.upper()} files under dist/")
     add_selection_arguments(package)
+    package.set_defaults(backend=backend_name, backend_profile=backend_profile)
     package.add_argument("--output", type=Path, help="override the configured package output directory")
     package.add_argument("--force", action="store_true", help="replace a recognized generated package")
     package.set_defaults(handler=package_backend)
@@ -365,8 +368,10 @@ def run_benchmark(args):
         print(f"ERROR: benchmark is not configured for backend {context['backend_name']}.", file=sys.stderr)
         return 2
     protocol = benchmark.get("protocol")
-    if protocol not in {"cuda_tsv_v1", "cann_tsv_v1"}:
-        print(f"ERROR: unsupported benchmark protocol {protocol!r} in operator.yaml.", file=sys.stderr)
+    profile = args.backend_profile
+    if protocol != profile["benchmark_protocol"]:
+        print(f"ERROR: {context['backend_name']} expects benchmark protocol "
+              f"{profile['benchmark_protocol']!r}, found {protocol!r} in operator.yaml.", file=sys.stderr)
         return 2
     tests = context["backend"].get("tests", {})
     if not tests.get("project"):
@@ -420,7 +425,7 @@ def run_benchmark(args):
         return 2
 
     compiler_version = "unavailable"
-    compiler = shutil.which(benchmark.get("compiler", "nvcc"))
+    compiler = shutil.which(benchmark.get("compiler", profile["compiler"]))
     if compiler:
         result = run([compiler, "--version"], capture=True)
         if result is not None and result.returncode == 0:
@@ -440,7 +445,7 @@ def run_benchmark(args):
         if measured is None:
             return 127
         fields = measured.stdout.strip().split("\t")
-        expected_tag = "CUDA_RESULT" if protocol == "cuda_tsv_v1" else "CANN_RESULT"
+        expected_tag = profile["result_tag"]
         if len(fields) != 16 or fields[0] != expected_tag:
             print(measured.stderr or f"ERROR: unexpected evaluation output: {measured.stdout!r}", file=sys.stderr)
             return measured.returncode or 2
@@ -468,11 +473,11 @@ def run_benchmark(args):
             "timestamp_utc": timestamp, "operator": context["config"]["name"],
             "backend": context["backend_name"], "kernel_file": context["kernel_file"],
             "host_file": context["host_file"], "device": device, "input_size": measured_size,
-            "dtype": benchmark.get("dtype", "float32"), "compiler": benchmark.get("compiler", "nvcc"),
+            "dtype": benchmark.get("dtype", "float32"),
+            "compiler": benchmark.get("compiler", profile["compiler"]),
             "compiler_version": compiler_version,
-            "runtime": (f"CUDA Runtime {runtime_version}; driver API {driver_version}"
-                        if protocol == "cuda_tsv_v1"
-                        else f"CANN runtime {runtime_version}; driver version {driver_version}"),
+            "runtime": profile["runtime_format"].format(
+                runtime_version=runtime_version, driver_version=driver_version),
             "iterations": iterations, "working_set_bytes": working_set,
             "device_memory_total_bytes": memory_total,
             "device_memory_free_before_bytes": memory_free_before,
@@ -576,10 +581,10 @@ def package_backend(args):
     return 0
 
 
-def main():
-    args = make_parser().parse_args()
+def main(backend_name, backend_profile):
+    args = make_parser(backend_name, backend_profile).parse_args()
     return args.handler(args)
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    raise SystemExit("Run tools/operator_cuda.py or tools/operator_cann.py instead.")

@@ -29,7 +29,7 @@ python3 -m pip install -r requirements.txt
 
 CUDA 与 CANN 的 kernel/host 是各自后端的真实交付件。一个后端缺少实现时，相关源码和测试目录只标记为 scaffold，构建和测试入口须明确失败或不可运行。构建产物、测试临时文件与动画视频只放在忽略的 `build/`、`dist/` 或媒体输出目录。
 
-kernel 和 host 文件名由开发者决定，不要求采用固定的版本编号格式。工具扫描 `src/<backend>/kernel/` 和 `src/<backend>/host/` 中对应后端的源文件；`tools/ops.py list` 用于查看候选文件。执行 build、test、benchmark 和 package 时，可分别用 `--kernel <文件名>`、`--host <文件名>` 指定源码。某一目录只有一个候选文件时可省略对应参数；存在多个候选时必须显式选择。构建输出按所选文件组合隔离。
+kernel 和 host 文件名由开发者决定，不要求采用固定的版本编号格式。CUDA 与 CANN 有各自的工具入口：`tools/operator_cuda.py` 只操作 CUDA，`tools/operator_cann.py` 只操作 CANN；`list` 用于查看候选文件。执行 build、test、benchmark 和 package 时，可分别用 `--kernel <文件名>`、`--host <文件名>` 指定源码。某一目录只有一个候选文件时可省略对应参数；存在多个候选时必须显式选择。构建输出按所选文件组合隔离。两入口共享的配置解析和通用流程位于 `tools/operator_common.py`。
 
 **add 示例：**v1 是用户给出的单线程单元素 kernel；v2 是对齐时每线程用 `float4` 处理四个元素、未对齐时回退标量 grid-stride 的候选。两者都使用同一 host API 和测试工程。CANN v1/v2 当前已在 Atlas 200I DK A2（Ascend 310B4）和 CANN 7.0 RC1 上验证；v1 是标量循环，v2 每轮展开处理四个元素以尝试增加指令级并行，不声称使用 SIMD 指令或在其他 SoC/SDK 上可用。
 
@@ -47,15 +47,15 @@ kernel 和 host 文件名由开发者决定，不要求采用固定的版本编�
 
 ## 5. 构建并运行测试
 
-按同一入口选择算子和后端，先构建交付件，再运行独立测试工程：
+使用对应后端入口选择算子，先构建交付件，再运行独立测试工程：
 
 ```bash
-python3 tools/ops.py list operators/add/operator.yaml
-python3 tools/ops.py build operators/add/operator.yaml
-python3 tools/ops.py test operators/add/operator.yaml
+python3 tools/operator_cuda.py list operators/add/operator.yaml
+python3 tools/operator_cuda.py build operators/add/operator.yaml
+python3 tools/operator_cuda.py test operators/add/operator.yaml
 ```
 
-默认后端、kernel 和 host 从配置读取。必要时可使用 `--backend`、`--kernel`、`--host` 覆盖，不需要把源码路径重复写进每条命令。
+CUDA/CANN 入口分别固定后端，不再传 `--backend`。默认 kernel 和 host 从配置读取；必要时用 `--kernel`、`--host` 覆盖，不需要把源码路径重复写进每条命令。CANN 流程使用 `tools/operator_cann.py` 执行相同子命令。
 
 可以直接对算子根目录运行 CMake，也可以独立配置测试工程；具体选项由对应 CMake 文件和算子 `docs/usage.md` 维护。使用分开的构建目录，记录 configure、compile、test 三个阶段和工具链版本。关闭或未选择的后端不应成为已验证状态。
 
@@ -74,7 +74,7 @@ python3 tools/ops.py test operators/add/operator.yaml
 运行 add CUDA 性能评估：
 
 ```bash
-python3 tools/ops.py benchmark operators/add/operator.yaml
+python3 tools/operator_cuda.py benchmark operators/add/operator.yaml
 ```
 
 输入规模和迭代次数由 `operator.yaml` 的 `backends.<backend>.benchmark.sizes` 与 `iterations` 设置，不在常用命令里重复填写。`sizes` 的单位由该算子的 benchmark 定义，并在 `spec.md`/`usage.md` 说明；add 的单位是向量元素个数，不是字节数。add 当前配置为 `[1024, 1048576, 16777216]`，每个规模迭代 `100` 次。需要调整常用测量范围时改配置；临时单次测量仍可用 `--sizes` 和 `--iterations` 覆盖。对比另一组源码时，用 `--kernel` 和 `--host` 覆盖配置中的默认选择。
@@ -86,7 +86,8 @@ python3 tools/ops.py benchmark operators/add/operator.yaml
 打包命令只接受确实实现并登记的后端：
 
 ```bash
-python3 tools/ops.py package operators/add/operator.yaml
+python3 tools/operator_cuda.py package operators/add/operator.yaml
+python3 tools/operator_cann.py package operators/add/operator.yaml
 ```
 
 包放入 `dist/`，包括所选后端交付件、测试工程、必要元数据及使用说明。源码包不等同于已编译二进制包。提交前运行可用的正确性测试、检查包文件清单和 `git diff --check`，并分别汇报 PASS、FAIL、SKIP 与未能验证的部分。
