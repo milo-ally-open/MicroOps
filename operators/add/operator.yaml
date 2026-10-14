@@ -1,28 +1,101 @@
 name: add
 version: 0.1.0
-backends:
-  cuda:
-    status: device_tested_cmake_unverified
-    kernel: src/cuda/kernel/add_kernel.cu
-    host: src/cuda/host/add_cuda.cu
-    build: CMakeLists.txt
-    test_project: tests/cuda/CMakeLists.txt
-  cann:
-    status: scaffold
-    kernel: src/cann/kernel/
-    host: src/cann/host/
-    build: src/cann/CMakeLists.txt
-    test_project: tests/cann/CMakeLists.txt
-tests:
-  cuda_correctness: tests/cuda/correctness/add_cuda_test.cu
-  cuda_memory: tests/cuda/memory/add_cuda_memory_eval.cu
-  cuda_performance: tests/cuda/performance/add_cuda_benchmark.cu
-test_results:
-  cuda_performance: tests/cuda/performance/results/cuda.csv
-  cuda_memory: tests/cuda/memory/results/memory.csv
-demo: examples/cuda/add_demo.cu
+root: .
+default_backend: cuda
+
+paths:
+  build_root: build
+  dist_root: dist
+
 docs:
   proposal: docs/proposal.md
   spec: docs/spec.md
   tasks: docs/tasks.md
   usage: docs/usage.md
+
+backends:
+  cuda:
+    status: device_tested
+    kernel:
+      dir: src/cuda/kernel
+      extensions: [.cu]
+      default_file: add_kernel_v2.cu
+      cmake_variable: OPS_KERNEL_FILE
+      dir_cmake_variable: OPS_KERNEL_DIR
+    host:
+      dir: src/cuda/host
+      extensions: [.cu]
+      default_file: add_host_v2.cu
+      cmake_variable: OPS_HOST_FILE
+      dir_cmake_variable: OPS_HOST_DIR
+    build:
+      project: .
+      options:
+        OPS_ENABLE_CUDA: ON
+        OPS_ENABLE_CANN: OFF
+      examples_option: OPS_BUILD_EXAMPLES
+    tests:
+      project: tests/cuda
+      correctness: tests/cuda/correctness/add_cuda_test.cu
+      memory: tests/cuda/memory/add_cuda_memory_eval.cu
+      performance: tests/cuda/performance/add_cuda_benchmark.cu
+      cmake_variables:
+        correctness: OPS_TEST_CORRECTNESS_SOURCE
+        memory: OPS_TEST_MEMORY_SOURCE
+        performance: OPS_TEST_PERFORMANCE_SOURCE
+        memory_results: ADD_CUDA_MEMORY_RESULTS
+      options: {}
+      results:
+        memory: tests/cuda/memory/results/memory.csv
+        performance: tests/cuda/performance/results
+    benchmark:
+      protocol: cuda_tsv_v1
+      target: add_cuda_benchmark
+      executable: add_cuda_benchmark
+      compiler: nvcc
+      dtype: float32
+      default_sizes: [1024, 1048576]
+      default_iterations: 100
+      max_input: 2147483647
+      options:
+        OPS_BUILD_PERFORMANCE: ON
+    demo: examples/cuda/add_demo.cu
+    package:
+      include_all_sources: true
+      include:
+        - CMakeLists.txt
+        - operator.yaml
+        - docs/proposal.md
+        - docs/spec.md
+        - docs/tasks.md
+        - docs/usage.md
+        - src/cuda/CMakeLists.txt
+        - src/cuda/host/kernel_selection.h.in
+        - src/cuda/include/ops/add_cuda.hpp
+        - tests/cuda/CMakeLists.txt
+        - tests/cuda/correctness/add_cuda_test.cu
+        - tests/cuda/memory/add_cuda_memory_eval.cu
+        - tests/cuda/performance/add_cuda_benchmark.cu
+        - examples/cuda/add_demo.cu
+  cann:
+    status: scaffold
+    kernel:
+      dir: src/cann/kernel
+      extensions: [.cpp, .cc, .cxx]
+      default_file: null
+      cmake_variable: OPS_KERNEL_FILE
+      dir_cmake_variable: OPS_KERNEL_DIR
+    host:
+      dir: src/cann/host
+      extensions: [.cpp, .cc, .cxx]
+      default_file: null
+      cmake_variable: OPS_HOST_FILE
+      dir_cmake_variable: OPS_HOST_DIR
+    build:
+      project: src/cann
+      options:
+        OPS_ENABLE_CUDA: OFF
+        OPS_ENABLE_CANN: ON
+    tests:
+      project: tests/cann
+      options: {}

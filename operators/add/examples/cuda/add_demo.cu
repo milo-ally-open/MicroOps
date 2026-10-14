@@ -20,8 +20,8 @@ int main() {
     if (status == cudaSuccess) status = cudaMemcpy(device_a, host_a.data(), bytes, cudaMemcpyHostToDevice);
     if (status == cudaSuccess) status = cudaMemcpy(device_b, host_b.data(), bytes, cudaMemcpyHostToDevice);
     if (status == cudaSuccess) {
-        status = ops::add_cuda_v1(device_a, device_b, device_c,
-                                  static_cast<int>(host_a.size()), nullptr);
+        status = ops::add_cuda(device_a, device_b, device_c,
+                               static_cast<int>(host_a.size()), nullptr);
     }
     if (status == cudaSuccess) status = cudaDeviceSynchronize();
     if (status == cudaSuccess) status = cudaMemcpy(host_c.data(), device_c, bytes, cudaMemcpyDeviceToHost);

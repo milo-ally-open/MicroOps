@@ -43,7 +43,9 @@ void print_result(const std::string& device,
                   const double bandwidth_gbps,
                   const std::string& validation) {
     std::cout << std::setprecision(9)
-              << "CUDA_RESULT\t" << device
+              << "CUDA_RESULT\t" << ADD_CUDA_KERNEL_FILE
+              << '\t' << ADD_CUDA_HOST_FILE
+              << '\t' << device
               << '\t' << runtime
               << '\t' << driver
               << '\t' << count
@@ -139,7 +141,7 @@ int main(int argc, char** argv) {
 
     constexpr int warmup_iterations = 10;
     for (int i = 0; status == cudaSuccess && i < warmup_iterations; ++i) {
-        status = ops::add_cuda_v1(device_a, device_b, device_c, count, nullptr);
+        status = ops::add_cuda(device_a, device_b, device_c, count, nullptr);
     }
     if (status == cudaSuccess) status = cudaDeviceSynchronize();
 
@@ -149,7 +151,7 @@ int main(int argc, char** argv) {
     if (status == cudaSuccess) status = cudaEventCreate(&stop);
     if (status == cudaSuccess) status = cudaEventRecord(start, nullptr);
     for (int i = 0; status == cudaSuccess && i < iterations; ++i) {
-        status = ops::add_cuda_v1(device_a, device_b, device_c, count, nullptr);
+        status = ops::add_cuda(device_a, device_b, device_c, count, nullptr);
     }
     if (status == cudaSuccess) status = cudaEventRecord(stop, nullptr);
     if (status == cudaSuccess) status = cudaEventSynchronize(stop);

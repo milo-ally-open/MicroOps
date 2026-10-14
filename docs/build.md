@@ -1,56 +1,77 @@
 # 构建、测试与评估
 
-算子在 `operators/<op>/` 内独立配置。CUDA、CANN 交付件分别位于该算子的 `src/cuda/` 和 `src/cann/`；对应测试工程位于 `tests/cuda/` 和 `tests/cann/`。本仓库不提供 CPU 算子后端。
+每个算子的 `operator.yaml` 集中记录项目根目录、后端源码目录、默认 kernel/host 文件、CMake 项目、测试源码、结果路径和打包清单。统一脚本从该文件读取路径和默认选择；命令行只需传入配置文件，必要时才覆盖后端或文件选择。
 
 ## 工具要求
 
+- Python 3.9+ 和 PyYAML：`python3 -m pip install -r requirements.txt`
 - CMake 3.21+
-- Python 3.9+（统一工具脚本）
 - CUDA：兼容的 CUDA Toolkit/nvcc、C++17 host 编译器，以及设备测试所需驱动/设备
-- CANN：匹配的 CANN 开发环境与 NPU；当前 add 后端和测试工程仍是 scaffold
+- CANN：匹配的开发环境与 NPU；当前 add 后端和测试工程仍是 scaffold
 
-## CUDA add
+## 查看配置和源文件
 
-在 WSL/Linux 仓库根目录运行：
-
-```bash
-python3 tools/ops.py build --operator add --backend cuda
-python3 tools/ops.py test --operator add --backend cuda
-python3 tools/ops.py build --operator add --backend cuda --examples
-```
-
-直接构建算子交付件：
+从 WSL/Linux 仓库根目录运行：
 
 ```bash
-cmake -S operators/add -B build/add/cuda \
-  -DOPS_ENABLE_CUDA=ON -DOPS_ENABLE_CANN=OFF
-cmake --build build/add/cuda --config Release
+python3 tools/ops.py list operators/add/operator.yaml
 ```
 
-测试工程单独位于 `operators/add/tests/cuda/`，构建输出位于 `build/add/tests/cuda/`。它直接引用 `operators/add/src/cuda/` 中的 kernel/host，并运行 correctness 与 memory suites。没有 `nvcc` 时配置明确失败；没有设备或驱动时对应测试明确 Skip。
+`operator.yaml` 当前默认后端为 CUDA，默认选择 `add_kernel_v2.cu` 和 `add_host_v2.cu`。默认文件可在该配置中修改。也可以临时通过 `--backend`、`--kernel`、`--host` 覆盖；文件名由开发者决定，不要求固定命名格式。
+
+## 构建与测试
+
+```bash
+python3 tools/ops.py build operators/add/operator.yaml --examples
+python3 tools/ops.py test operators/add/operator.yaml
+```
+
+切换到 v1 文件组合：
+
+```bash
+python3 tools/ops.py build operators/add/operator.yaml \
+  --kernel add_kernel_v1.cu --host add_host_v1.cu --examples
+python3 tools/ops.py test operators/add/operator.yaml \
+  --kernel add_kernel_v1.cu --host add_host_v1.cu
+```
+
+直接使用 CMake 时，配置文件中的文件路径对应如下参数：
+
+```bash
+cmake -S operators/add -B build/add/cuda/manual \
+  -DOPS_ENABLE_CUDA=ON -DOPS_ENABLE_CANN=OFF \
+  -DOPS_KERNEL_FILE=add_kernel_v2.cu -DOPS_HOST_FILE=add_host_v2.cu \
+  -DOPS_BUILD_EXAMPLES=ON
+cmake --build build/add/cuda/manual --config Release
+```
+
+测试工程由 `operator.yaml` 中 `backends.cuda.tests.project` 指定，正确性和显存评估由该工程的 CTest suites 执行。没有 `nvcc` 时配置明确失败；没有设备或驱动时设备用例明确 Skip。
 
 ## 性能评估
 
-性能程序由 CUDA 测试工程构建，测量和记录使用统一入口：
+正确性通过后运行配置中指定的 benchmark：
 
 ```bash
-python3 tools/ops.py benchmark --operator add \
+python3 tools/ops.py benchmark operators/add/operator.yaml \
   --sizes 1024,1048576,16777216 --iterations 100
 ```
 
-结果追加到 `operators/add/tests/cuda/performance/results/cuda.csv`，显存评估结果写入 `operators/add/tests/cuda/memory/results/memory.csv`。新算子必须在自己的测试工程和元数据中登记对应的评估目标。
+结果追加到 `backends.cuda.tests.results.performance` 指定的目录，文件名根据 kernel/host 文件名生成。显存评估写入配置指定的 `memory` 路径。记录包含具体源码、设备、输入规模、编译器/runtime、资源读数和测量数据。
 
 ## CANN 与打包
 
-```bash
-python3 tools/ops.py build --operator add --backend cann
-python3 tools/ops.py test --operator add --backend cann
-```
-
-目前以上 CANN 命令会以明确错误停止，因为 add 尚无 CANN 实现和测试 harness。不要将 scaffold 当作成功构建。CUDA 源码和测试工程可打包至 `dist/`：
+CANN 可通过配置文件切换后端：
 
 ```bash
-python3 tools/ops.py package --operator add --backend cuda
+python3 tools/ops.py build operators/add/operator.yaml --backend cann
 ```
 
-此前在 WSL 上运行过 add CUDA v1 的 smoke test 和多规模性能评估，记录保存在 `operators/add/tests/cuda/performance/results/cuda.csv`。目录布局及独立测试工程调整后，需在 CUDA 工具链可用时重新验证。
+当前没有 CANN kernel/host 源文件，因此会明确提示 scaffold，不会报告构建成功。
+
+打包使用同一配置和当前默认源码选择：
+
+```bash
+python3 tools/ops.py package operators/add/operator.yaml
+```
+
+输出位于 `dist/`。源码包不等于已编译二进制包。旧的 `tests/cuda/performance/results/cuda.csv` 是历史格式，工具不会覆盖它。

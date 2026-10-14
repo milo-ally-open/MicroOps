@@ -18,10 +18,10 @@ bool check_cuda(cudaError_t status, const char* operation) {
     return false;
 }
 
-bool run_case(const int count) {
+bool run_case(const int count, const int device_offset = 0) {
     if (count == 0) {
-        return check_cuda(ops::add_cuda_v1(nullptr, nullptr, nullptr, 0, nullptr),
-                          "zero-length add_cuda_v1");
+        return check_cuda(ops::add_cuda(nullptr, nullptr, nullptr, 0, nullptr),
+                          "zero-length add_cuda");
     }
 
     std::vector<float> host_a(static_cast<std::size_t>(count));
@@ -35,27 +35,33 @@ bool run_case(const int count) {
     float* device_a = nullptr;
     float* device_b = nullptr;
     float* device_c = nullptr;
-    cudaError_t status = cudaMalloc(reinterpret_cast<void**>(&device_a), count * sizeof(float));
+    const std::size_t allocation_bytes =
+        static_cast<std::size_t>(count + device_offset) * sizeof(float);
+    cudaError_t status = cudaMalloc(reinterpret_cast<void**>(&device_a), allocation_bytes);
     if (status == cudaSuccess) {
-        status = cudaMalloc(reinterpret_cast<void**>(&device_b), count * sizeof(float));
+        status = cudaMalloc(reinterpret_cast<void**>(&device_b), allocation_bytes);
     }
     if (status == cudaSuccess) {
-        status = cudaMalloc(reinterpret_cast<void**>(&device_c), count * sizeof(float));
+        status = cudaMalloc(reinterpret_cast<void**>(&device_c), allocation_bytes);
     }
     if (status == cudaSuccess) {
-        status = cudaMemcpy(device_a, host_a.data(), count * sizeof(float), cudaMemcpyHostToDevice);
+        status = cudaMemcpy(device_a + device_offset, host_a.data(),
+                            count * sizeof(float), cudaMemcpyHostToDevice);
     }
     if (status == cudaSuccess) {
-        status = cudaMemcpy(device_b, host_b.data(), count * sizeof(float), cudaMemcpyHostToDevice);
+        status = cudaMemcpy(device_b + device_offset, host_b.data(),
+                            count * sizeof(float), cudaMemcpyHostToDevice);
     }
     if (status == cudaSuccess) {
-        status = ops::add_cuda_v1(device_a, device_b, device_c, count, nullptr);
+        status = ops::add_cuda(device_a + device_offset, device_b + device_offset,
+                               device_c + device_offset, count, nullptr);
     }
     if (status == cudaSuccess) {
         status = cudaDeviceSynchronize();
     }
     if (status == cudaSuccess) {
-        status = cudaMemcpy(host_c.data(), device_c, count * sizeof(float), cudaMemcpyDeviceToHost);
+        status = cudaMemcpy(host_c.data(), device_c + device_offset,
+                            count * sizeof(float), cudaMemcpyDeviceToHost);
     }
 
     bool valid = check_cuda(status, "CUDA add test operation");
@@ -81,8 +87,8 @@ bool run_case(const int count) {
 }  // namespace
 
 int main() {
-    if (ops::add_cuda_v1(nullptr, nullptr, nullptr, -1, nullptr) != cudaErrorInvalidValue ||
-        ops::add_cuda_v1(nullptr, nullptr, nullptr, 1, nullptr) != cudaErrorInvalidValue) {
+    if (ops::add_cuda(nullptr, nullptr, nullptr, -1, nullptr) != cudaErrorInvalidValue ||
+        ops::add_cuda(nullptr, nullptr, nullptr, 1, nullptr) != cudaErrorInvalidValue) {
         std::cerr << "invalid size/pointers must return cudaErrorInvalidValue\n";
         return 1;
     }
@@ -103,9 +109,11 @@ int main() {
         return 1;
     }
 
-    if (!run_case(0) || !run_case(1) || !run_case(259)) {
+    if (!run_case(0) || !run_case(1) || !run_case(259) || !run_case(259, 1)) {
         return 1;
     }
-    std::cout << "CUDA add v1 tests passed on " << device_count << " device(s)\n";
+    std::cout << "CUDA add kernel=" << ADD_CUDA_KERNEL_FILE
+              << " host=" << ADD_CUDA_HOST_FILE
+              << " tests passed on " << device_count << " device(s)\n";
     return 0;
 }

@@ -1,54 +1,75 @@
 # add 使用说明
 
-## CUDA v1
+## 配置入口
 
-CUDA kernel 位于 `src/cuda/kernel/add_kernel.cu`，host wrapper 位于 `src/cuda/host/add_cuda.cu`。每线程计算 `idx = blockIdx.x * blockDim.x + threadIdx.x`，wrapper 每 block 使用 256 个线程，并通过 `idx < N` 保护尾部。接口接受设备指针和非负 `N <= INT_MAX`，在指定 stream 异步发射。
+`operator.yaml` 包含算子根目录、后端 kernel/host 目录、默认源码文件、CMake 项目、tests 源码和结果路径，以及打包文件清单。当前默认后端是 CUDA，默认 kernel/host 为 `add_kernel_v2.cu` 和 `add_host_v2.cu`。这些文件名只是当前选择值；你可以在配置中改默认项，或在命令行临时覆盖。
 
-CUDA Toolkit、CMake 3.21+ 和 C++17 编译器就绪后，在 WSL/Linux 仓库根目录构建：
+查看配置里各后端的源码文件：
 
 ```bash
-python3 tools/ops.py build --operator add --backend cuda
-python3 tools/ops.py build --operator add --backend cuda --examples
-./build/add/cuda/add_demo
+python3 tools/ops.py list operators/add/operator.yaml
 ```
 
-直接使用 CMake 时：
+## 构建、测试和 demo
+
+安装工具脚本依赖后，从仓库根目录构建默认配置、运行测试并启动 demo：
 
 ```bash
-cmake -S operators/add -B build/add/cuda \
-  -DOPS_ENABLE_CUDA=ON -DOPS_ENABLE_CANN=OFF
-cmake --build build/add/cuda --config Release
+python3 -m pip install -r requirements.txt
+python3 tools/ops.py build operators/add/operator.yaml --examples
+python3 tools/ops.py test operators/add/operator.yaml
+./build/add/cuda/add_kernel_v2__add_host_v2/add_demo
 ```
 
-## CUDA 测试工程
-
-正确性与资源评估使用独立工程 `tests/cuda/CMakeLists.txt`，它直接编译 `src/cuda/` 中的算子交付件：
+若要临时选择 v1 文件组合，不必修改配置：
 
 ```bash
-python3 tools/ops.py test --operator add --backend cuda
+python3 tools/ops.py build operators/add/operator.yaml \
+  --kernel add_kernel_v1.cu --host add_host_v1.cu --examples
+python3 tools/ops.py test operators/add/operator.yaml \
+  --kernel add_kernel_v1.cu --host add_host_v1.cu
+./build/add/cuda/add_kernel_v1__add_host_v1/add_demo
 ```
 
-正确性用例包括 `N=0`、`N=1`、非 block 对齐长度 `N=259`、负数长度和非法空指针。Memory suite 运行小规模三缓冲申请/释放评估，并将实测读数追加至 `tests/cuda/memory/results/memory.csv`。没有可用设备或驱动时，设备测试会显示 Skip；Skip 不代表通过。
-
-CUDA 性能评估在 correctness 和 memory suites 之后显式运行：
+host 与 kernel 需要按实现接口配对；CMake 会把配置或命令选择的 kernel 文件包含到所选 host 编译单元中。直接使用 CMake 时，传入相同文件名：
 
 ```bash
-python3 tools/ops.py benchmark --operator add \
+cmake -S operators/add -B build/add/cuda/manual \
+  -DOPS_ENABLE_CUDA=ON -DOPS_ENABLE_CANN=OFF \
+  -DOPS_KERNEL_FILE=add_kernel_v2.cu -DOPS_HOST_FILE=add_host_v2.cu \
+  -DOPS_BUILD_EXAMPLES=ON
+cmake --build build/add/cuda/manual --config Release
+```
+
+正确性测试覆盖 `N=0`、`N=1`、`N=259`、非法参数和未对齐输入。显存 suite 报告三缓冲申请量和设备内存读数，写入配置中的 `backends.cuda.tests.results.memory`。没有设备/驱动时设备用例显示 `SKIP`，不计为通过。构建目录按源码选择隔离。
+
+## 性能评估
+
+正确性通过后运行配置中的 benchmark：
+
+```bash
+python3 tools/ops.py benchmark operators/add/operator.yaml \
   --sizes 1024,1048576,16777216 --iterations 100
 ```
 
-结果追加至 `tests/cuda/performance/results/cuda.csv`。每行包含设备、输入规模、编译器/runtime/driver、显存读数、分配状态、延迟、估算有效带宽及校验状态。流量按 A/B 读取和 C 写入估算为 `12 * N` 字节；它不是硬件计数器测得的 DRAM 带宽。
+这会评估配置当前选择的源码组合。比较另一组实现时覆盖 kernel 和 host：
+
+```bash
+python3 tools/ops.py benchmark operators/add/operator.yaml \
+  --kernel add_kernel_v1.cu --host add_host_v1.cu \
+  --sizes 1024,1048576,16777216 --iterations 100
+```
+
+默认 CSV 写入 `tests/cuda/performance/results/<kernel-stem>__<host-stem>.csv`，记录所选文件、设备、输入规模、编译器/runtime/driver、显存读数、延迟、估算有效带宽和校验状态。float32 加法按每元素读 A、读 B、写 C 估算 `12 * N` 字节；有效带宽不是硬件计数器测得的 DRAM 带宽。工具不会覆盖旧格式 `cuda.csv`。
 
 ## CANN 状态
 
-`src/cann/` 和 `tests/cann/` 目前是 scaffold，没有可运行实现。构建或测试命令会明确停止并报告尚未实现，不会回退到其他后端。
+`src/cann/` 和 `tests/cann/` 当前为 scaffold。`operator.yaml` 已留有 kernel/host/CMake/tests 路径配置，但没有实现源文件；脚本会明确提示缺少源码，不会声称可构建或可运行。
 
 ## 打包
 
-当前只有 CUDA 后端可打包：
-
 ```bash
-python3 tools/ops.py package --operator add --backend cuda
+python3 tools/ops.py package operators/add/operator.yaml
 ```
 
-包输出至 `dist/`，包括 `src/cuda/` kernel/host、独立测试工程、示例、规格和使用说明。当前状态为 CMake/测试工程待复验，源码包不表示已在当前机器构建或通过设备测试。
+包会按当前选择写入 `dist/`，包含配置列出的构建、测试、文档文件和 backend 源码。源码包不表示当前机器已构建或通过设备验证。

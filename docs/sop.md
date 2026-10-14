@@ -10,13 +10,14 @@
 git status --short --branch
 python3 --version
 cmake --version
+python3 -m pip install -r requirements.txt
 ```
 
 按目标后端检查编译器和设备，例如 `nvcc --version`、`nvidia-smi`，或 CANN 编译工具链与 NPU 设备状态。未能确认的依赖记为不可用，不能以 scaffold 或配置占位冒充构建成功。
 
 ## 2. 定义算子契约
 
-先在 `operators/<op>/docs/` 明确数学定义、输入输出、布局、dtype、shape、合法范围、边界行为、精度/容差、别名规则、支持后端和验收标准，再开始实现。`operator.yaml` 只登记工具需要的版本、后端状态、源文件、测试工程和 demo 入口，不复制完整规格。
+先在 `operators/<op>/docs/` 明确数学定义、输入输出、布局、dtype、shape、合法范围、边界行为、精度/容差、别名规则、支持后端和验收标准，再开始实现。`operator.yaml` 集中记录工具要读取的算子根目录、后端源码目录和默认文件、CMake 项目、测试文件、结果路径及打包清单；详细规格仍放在算子文档中。
 
 `operators/<op>/docs/reference/` 用于论文和引用资料，`operators/<op>/docs/notes/` 用于学习与实现笔记；它们不是 CPU 参考实现目录。正确性期望值由测试工程内的独立校验逻辑提供，不形成 CPU 算子交付后端。
 
@@ -28,11 +29,13 @@ cmake --version
 
 CUDA 与 CANN 的 kernel/host 是各自后端的真实交付件。一个后端缺少实现时，相关源码和测试目录只标记为 scaffold，构建和测试入口须明确失败或不可运行。构建产物、测试临时文件与动画视频只放在忽略的 `build/`、`dist/` 或媒体输出目录。
 
-**add v1：**`src/cuda/kernel/add_kernel.cu` 是用户给出的单线程单元素 kernel；`src/cuda/host/add_cuda.cu` 校验参数、计算 launch grid 并在调用方 stream 上启动它。`src/cann/` 只保留 scaffold，不声称实现了 add。
+kernel 和 host 文件名由开发者决定，不要求采用固定的版本编号格式。工具扫描 `src/<backend>/kernel/` 和 `src/<backend>/host/` 中对应后端的源文件；`tools/ops.py list` 用于查看候选文件。执行 build、test、benchmark 和 package 时，可分别用 `--kernel <文件名>`、`--host <文件名>` 指定源码。某一目录只有一个候选文件时可省略对应参数；存在多个候选时必须显式选择。构建输出按所选文件组合隔离。
+
+**add 示例：**v1 是用户给出的单线程单元素 kernel；v2 是对齐时每线程用 `float4` 处理四个元素、未对齐时回退标量 grid-stride 的候选。两者都使用同一 host API 和测试工程。源码实现不代表性能已验证。`src/cann/` 只保留 scaffold，不声称实现了 add。
 
 ## 4. 实现后端并建立测试工程
 
-每个后端的 `tests/<backend>/CMakeLists.txt` 都是独立测试项目，直接引用同级 `<backend>/` 的交付件，不复制另一份待测 kernel。测试工程应按职责组织：
+每个后端的 `tests/<backend>/CMakeLists.txt` 都是独立测试项目，使用同一组选择参数构建对应的 kernel/host，不复制另一份待测源码。正确性和性能测试使用同一组选择，结果记录具体文件名。测试工程应按职责组织：
 
 - `correctness/`：典型 shape、空/最小输入、尾部或非对齐 shape、非法参数、容差和输出校验。
 - `memory/`：理论工作集、实际申请字节、设备总量、分配前/分配后/释放后可用量、申请状态；必要时覆盖 workspace、临时张量和峰值估算。
@@ -47,13 +50,16 @@ CUDA 与 CANN 的 kernel/host 是各自后端的真实交付件。一个后端�
 按同一入口选择算子和后端，先构建交付件，再运行独立测试工程：
 
 ```bash
-python3 tools/ops.py build --operator add --backend cuda
-python3 tools/ops.py test --operator add --backend cuda
+python3 tools/ops.py list operators/add/operator.yaml
+python3 tools/ops.py build operators/add/operator.yaml
+python3 tools/ops.py test operators/add/operator.yaml
 ```
+
+默认后端、kernel 和 host 从配置读取。必要时可使用 `--backend`、`--kernel`、`--host` 覆盖，不需要把源码路径重复写进每条命令。
 
 可以直接对算子根目录运行 CMake，也可以独立配置测试工程；具体选项由对应 CMake 文件和算子 `docs/usage.md` 维护。使用分开的构建目录，记录 configure、compile、test 三个阶段和工具链版本。关闭或未选择的后端不应成为已验证状态。
 
-**add v1：**CUDA Toolkit、CMake 3.21+ 和 C++17 编译器就绪后，以上命令会分别构建算子库和 `tests/cuda/` 测试工程。没有 `nvcc` 时不进入设备测试，也不声称后端通过。
+**add：**CUDA Toolkit、CMake 3.21+ 和 C++17 编译器就绪后，命令按指定 kernel/host 文件构建算子库和 `tests/cuda/` 测试工程。没有 `nvcc` 时配置明确失败，也不声称后端通过。
 
 ## 6. 评估内存和性能
 
@@ -68,9 +74,11 @@ python3 tools/ops.py test --operator add --backend cuda
 运行 add CUDA 性能评估：
 
 ```bash
-python3 tools/ops.py benchmark --operator add \
+python3 tools/ops.py benchmark operators/add/operator.yaml \
   --sizes 1024,1048576,16777216 --iterations 100
 ```
+
+该命令使用 `operator.yaml` 中默认的源码选择；对比另一组文件时，用 `--kernel` 和 `--host` 覆盖默认项。
 
 ## 7. 更新文档、打包和提交
 
@@ -79,9 +87,9 @@ python3 tools/ops.py benchmark --operator add \
 打包命令只接受确实实现并登记的后端：
 
 ```bash
-python3 tools/ops.py package --operator add --backend cuda
+python3 tools/ops.py package operators/add/operator.yaml
 ```
 
 包放入 `dist/`，包括所选后端交付件、测试工程、必要元数据及使用说明。源码包不等同于已编译二进制包。提交前运行可用的正确性测试、检查包文件清单和 `git diff --check`，并分别汇报 PASS、FAIL、SKIP 与未能验证的部分。
 
-**add v1 当前状态：**历史 CUDA 性能 CSV 保留为已有实测记录，位于 `tests/cuda/performance/results/`；新的根目录布局和测试工程待本机 CUDA 工具链复验；CANN 实现及 CANN 测试工程仍是 scaffold。
+**add 当前状态：**v1/v2 已在 RTX 4060 Laptop GPU、nvcc 12.6、CUDA Runtime 12.6 上分别构建并通过 correctness 与 memory suites，并按相同输入规模和迭代数完成一轮 benchmark。新记录按 kernel/host 文件组合保存在独立 CSV；单轮性能数据不代表普遍结论。CANN kernel/host 和测试工程仍是 scaffold。
