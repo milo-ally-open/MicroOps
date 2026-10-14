@@ -15,6 +15,8 @@ python3 -m pip install -r requirements.txt
 
 按目标后端检查编译器和设备，例如 `nvcc --version`、`nvidia-smi`，或 CANN 编译工具链与 NPU 设备状态。未能确认的依赖记为不可用，不能以 scaffold 或配置占位冒充构建成功。
 
+CUDA 工具只在 `nvcc` 可用时运行；CANN 工具只在加载 CANN 环境、`bisheng` 可用时运行。工具会在所有命令执行前做对应编译器检查，避免在另一后端主机上误执行 list、构建、测试、benchmark 或打包。
+
 ## 2. 定义算子契约
 
 先在 `operators/<op>/docs/` 明确数学定义、输入输出、布局、dtype、shape、合法范围、边界行为、精度/容差、别名规则、支持后端和验收标准，再开始实现。`operator.yaml` 集中记录工具要读取的算子根目录、后端源码目录和默认文件、CMake 项目、测试文件、结果路径及打包清单；详细规格仍放在算子文档中。

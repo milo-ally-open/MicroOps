@@ -33,6 +33,30 @@ def run(command, *, capture=False, missing_tool_message="ERROR: required tool wa
         return None
 
 
+def check_backend_environment(backend_profile):
+    compiler = backend_profile["compiler"]
+    compiler_path = shutil.which(compiler)
+    if compiler_path is None:
+        print(f"ERROR: {backend_profile['name']} environment was not detected: "
+              f"required compiler {compiler!r} is not on PATH.", file=sys.stderr)
+        print(f"       {backend_profile['environment_hint']}", file=sys.stderr)
+        return 2
+    try:
+        result = subprocess.run([compiler_path, "--version"], cwd=ROOT, text=True,
+                                stdout=subprocess.PIPE, stderr=subprocess.STDOUT, timeout=15)
+    except (OSError, subprocess.TimeoutExpired) as error:
+        print(f"ERROR: could not verify {backend_profile['name']} compiler {compiler!r}: {error}",
+              file=sys.stderr)
+        return 2
+    if result.returncode != 0:
+        print(f"ERROR: {backend_profile['name']} compiler {compiler!r} failed its version check.",
+              file=sys.stderr)
+        if result.stdout:
+            print(result.stdout.rstrip(), file=sys.stderr)
+        return 2
+    return 0
+
+
 def add_config_argument(parser):
     parser.add_argument("config", type=Path, help="operator.yaml for the selected operator")
 
@@ -583,6 +607,9 @@ def package_backend(args):
 
 def main(backend_name, backend_profile):
     args = make_parser(backend_name, backend_profile).parse_args()
+    environment_status = check_backend_environment(backend_profile)
+    if environment_status != 0:
+        return environment_status
     return args.handler(args)
 
 

@@ -25,15 +25,12 @@ OpsFromScratch 用于学习 CUDA 与 CANN 并行计算，并以可测试、可�
     python3 tools/operator_cuda.py list operators/add/operator.yaml
     python3 tools/operator_cann.py list operators/add/operator.yaml
 
-## CPU-only 快速开始
+## CPU-only 环境说明
 
-CPU-only 主机可查看和打包源码；不会因此安装或调用 CUDA/CANN 工具链。仓库当前没有 CPU 算子执行后端，因此设备测试需对应 SDK 与硬件。
+CPU-only 主机可查看源码、配置和文档，但不能运行后端工具。两个后端工具都会先检查对应编译器；缺少 CUDA Toolkit 或 CANN 环境时，连 list/package 也会明确拒绝运行。仓库当前没有 CPU 算子执行后端。
 
-    python3 -m pip install -r requirements.txt
-    python3 tools/operator_cuda.py list operators/add/operator.yaml
-    python3 tools/operator_cann.py list operators/add/operator.yaml
-    python3 tools/operator_cuda.py package operators/add/operator.yaml
-    python3 tools/operator_cann.py package operators/add/operator.yaml
+    cat operators/add/operator.yaml
+    less operators/add/docs/spec.md
 
 ## CUDA 环境
 

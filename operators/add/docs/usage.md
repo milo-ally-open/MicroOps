@@ -4,6 +4,8 @@
 
 operator.yaml 是构建、测试、benchmark 和打包配置入口，包含 CUDA/CANN 源码目录、默认 kernel/host 文件、测试工程、benchmark 尺寸和结果路径。文件名只表示源码选择值，可继续增加 add_kernel_v3.cpp 等版本：
 
+CUDA 与 CANN 脚本会先检查各自编译器（`nvcc` 或 `bisheng`）是否在 PATH 中；缺少对应环境时，包括 list 和 package 在内的命令都会明确退出。
+
     python3 tools/operator_cuda.py list operators/add/operator.yaml
     python3 tools/operator_cann.py list operators/add/operator.yaml
 

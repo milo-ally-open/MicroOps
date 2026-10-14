@@ -1,6 +1,6 @@
 # 构建、测试与评估
 
-每个算子的 `operator.yaml` 记录后端源码目录、默认 kernel/host 文件、CMake 项目、测试源码、结果路径和打包清单。CUDA 与 CANN 使用独立脚本，命令不再需要 `--backend`；源码选择可从 YAML 读取，也可通过 `--kernel`、`--host` 临时覆盖。
+每个算子的 `operator.yaml` 记录后端源码目录、默认 kernel/host 文件、CMake 项目、测试源码、结果路径和打包清单。CUDA 与 CANN 使用独立脚本，命令不再需要 `--backend`；源码选择可从 YAML 读取，也可通过 `--kernel`、`--host` 临时覆盖。每次运行脚本时都会先检查本机对应编译器是否可用：CUDA 检查 `nvcc`，CANN 检查 `bisheng`。缺少对应后端环境时，所有子命令（包括 `list` 和 `package`）都会报错退出，避免把另一个后端的环境误当成本后端。
 
 ## 工具要求
 
