@@ -45,10 +45,11 @@ CUDA 构建需要 CUDA Toolkit/nvcc、CMake 3.21+ 和 C++17 host 编译器。没
 正确性通过后执行：
 
 ```bash
-python3 tools/ops.py benchmark operators/add/operator.yaml \
-  --sizes 1024,1048576,16777216 --iterations 100
+python3 tools/ops.py benchmark operators/add/operator.yaml
 python3 tools/ops.py package operators/add/operator.yaml
 ```
+
+benchmark 规模和迭代次数由 `operators/add/operator.yaml` 的 `backends.cuda.benchmark.sizes` 与 `iterations` 控制；当前配置为 `[1024, 1048576, 16777216]` 和 `100`。
 
 评估记录设备、源码文件、输入规模、编译器/runtime、内存数据和测量结果；未运行的数据不会生成。源码包输出到 `dist/`，不代表已构建或通过设备验证。
 

@@ -54,8 +54,8 @@ backends:
       executable: add_cuda_benchmark
       compiler: nvcc
       dtype: float32
-      default_sizes: [1024, 1048576]
-      default_iterations: 100
+      sizes: [1024, 1048576, 16777216]
+      iterations: 100
       max_input: 2147483647
       options:
         OPS_BUILD_PERFORMANCE: ON

@@ -74,11 +74,10 @@ python3 tools/ops.py test operators/add/operator.yaml
 运行 add CUDA 性能评估：
 
 ```bash
-python3 tools/ops.py benchmark operators/add/operator.yaml \
-  --sizes 1024,1048576,16777216 --iterations 100
+python3 tools/ops.py benchmark operators/add/operator.yaml
 ```
 
-该命令使用 `operator.yaml` 中默认的源码选择；对比另一组文件时，用 `--kernel` 和 `--host` 覆盖默认项。
+输入规模和迭代次数由 `operator.yaml` 的 `backends.<backend>.benchmark.sizes` 与 `iterations` 设置，不在常用命令里重复填写。`sizes` 的单位由该算子的 benchmark 定义，并在 `spec.md`/`usage.md` 说明；add 的单位是向量元素个数，不是字节数。add 当前配置为 `[1024, 1048576, 16777216]`，每个规模迭代 `100` 次。需要调整常用测量范围时改配置；临时单次测量仍可用 `--sizes` 和 `--iterations` 覆盖。对比另一组源码时，用 `--kernel` 和 `--host` 覆盖配置中的默认选择。
 
 ## 7. 更新文档、打包和提交
 

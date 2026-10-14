@@ -52,9 +52,10 @@ cmake --build build/add/cuda/manual --config Release
 正确性通过后运行配置中指定的 benchmark：
 
 ```bash
-python3 tools/ops.py benchmark operators/add/operator.yaml \
-  --sizes 1024,1048576,16777216 --iterations 100
+python3 tools/ops.py benchmark operators/add/operator.yaml
 ```
+
+输入规模和迭代次数从 `operator.yaml` 的 `backends.cuda.benchmark.sizes` 与 `iterations` 读取。修改配置即可调整常用测量范围；`--sizes` 和 `--iterations` 仍可用于单次临时覆盖。
 
 结果追加到 `backends.cuda.tests.results.performance` 指定的目录，文件名根据 kernel/host 文件名生成。显存评估写入配置指定的 `memory` 路径。记录包含具体源码、设备、输入规模、编译器/runtime、资源读数和测量数据。
 

@@ -66,8 +66,10 @@ def make_parser():
 
     benchmark = commands.add_parser("benchmark", help="run the configured performance evaluation")
     add_selection_arguments(benchmark)
-    benchmark.add_argument("--sizes", type=positive_ints, help="comma-separated input sizes")
-    benchmark.add_argument("--iterations", type=positive_int, help="number of timed iterations")
+    benchmark.add_argument("--sizes", type=positive_ints,
+                           help="override benchmark.sizes from operator.yaml")
+    benchmark.add_argument("--iterations", type=positive_int,
+                           help="override benchmark.iterations from operator.yaml")
     benchmark.add_argument("--output", type=Path, help="override the configured CSV output")
     benchmark.add_argument("--build-dir", type=Path, help="override the configured benchmark build directory")
     benchmark.add_argument("--executable", type=Path, help="use an already-built evaluation executable")
@@ -370,10 +372,15 @@ def run_benchmark(args):
     if not tests.get("project"):
         print("ERROR: benchmark requires a configured test project.", file=sys.stderr)
         return 2
-    iterations = args.iterations or benchmark.get("default_iterations", 100)
-    sizes = args.sizes or benchmark.get("default_sizes", [1024, 1048576])
-    if iterations <= 0:
-        print("ERROR: --iterations must be positive.", file=sys.stderr)
+    iterations = args.iterations if args.iterations is not None else benchmark.get("iterations", 100)
+    sizes = args.sizes if args.sizes is not None else benchmark.get("sizes", [1024, 1048576])
+    if not isinstance(iterations, int) or isinstance(iterations, bool) or iterations <= 0:
+        print("ERROR: benchmark.iterations in operator.yaml must be a positive integer.", file=sys.stderr)
+        return 2
+    if (not isinstance(sizes, list) or not sizes or
+            any(not isinstance(size, int) or isinstance(size, bool) or size <= 0 for size in sizes)):
+        print("ERROR: benchmark.sizes in operator.yaml must be a non-empty list of positive integers.",
+              file=sys.stderr)
         return 2
     if any(size > benchmark.get("max_input", 2147483647) for size in sizes):
         print(f"ERROR: input size exceeds configured maximum {benchmark.get('max_input', 2147483647)}.",

@@ -48,16 +48,16 @@ cmake --build build/add/cuda/manual --config Release
 正确性通过后运行配置中的 benchmark：
 
 ```bash
-python3 tools/ops.py benchmark operators/add/operator.yaml \
-  --sizes 1024,1048576,16777216 --iterations 100
+python3 tools/ops.py benchmark operators/add/operator.yaml
 ```
+
+工具从 `operator.yaml` 的 `backends.cuda.benchmark.sizes` 和 `iterations` 读取默认规模与迭代数。这里的 size 是输入向量的 float32 元素个数，不是字节数。当前配置为 `[1024, 1048576, 16777216]`、每个规模迭代 `100` 次。修改 YAML 即可调整常用流程；`--sizes` 和 `--iterations` 可用于单次临时覆盖。
 
 这会评估配置当前选择的源码组合。比较另一组实现时覆盖 kernel 和 host：
 
 ```bash
 python3 tools/ops.py benchmark operators/add/operator.yaml \
-  --kernel add_kernel_v1.cu --host add_host_v1.cu \
-  --sizes 1024,1048576,16777216 --iterations 100
+  --kernel add_kernel_v1.cu --host add_host_v1.cu
 ```
 
 默认 CSV 写入 `tests/cuda/performance/results/<kernel-stem>__<host-stem>.csv`，记录所选文件、设备、输入规模、编译器/runtime/driver、显存读数、延迟、估算有效带宽和校验状态。float32 加法按每元素读 A、读 B、写 C 估算 `12 * N` 字节；有效带宽不是硬件计数器测得的 DRAM 带宽。工具不会覆盖旧格式 `cuda.csv`。
