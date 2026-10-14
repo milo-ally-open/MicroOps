@@ -14,4 +14,4 @@
 
 ## 当前能力
 
-`add` 的 CUDA kernel/host 与测试工程已有设备验证；CANN v1 已在 Atlas 200I DK A2 / Ascend 310B4、CANN 7.0 RC1（dav-m300）上构建并通过设备测试。CANN v1 是已验证板卡上的标量 CCE 学习实现，不代表其他 SoC/SDK 可用。具体状态以 `operators/add/operator.yaml` 为准。
+`add` 的 CUDA kernel/host 与测试工程已有设备验证；CANN v1/v2 已在 Atlas 200I DK A2 / Ascend 310B4、CANN 7.0 RC1（dav-m300）上构建并通过设备测试。v1 是逐元素标量循环，v2 每轮展开处理四个元素；二者都是当前板卡上的 CCE 学习实现，不代表其他 SoC/SDK 可用。具体状态以 `operators/add/operator.yaml` 为准。

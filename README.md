@@ -1,6 +1,6 @@
 # OpsFromScratch
 
-OpsFromScratch 用于学习 CUDA 与 CANN 并行计算，并以可测试、可评估、可打包的方式组织设备算子工程。仓库不维护 CPU 算子后端。当前包含 add：CUDA v1/v2 示例，以及已在 Atlas 200I DK A2 / Ascend 310B4 上用 CANN 7.0 RC1 实测的 CANN v1。
+OpsFromScratch 用于学习 CUDA 与 CANN 并行计算，并以可测试、可评估、可打包的方式组织设备算子工程。仓库不维护 CPU 算子后端。当前包含 add：CUDA v1/v2 示例，以及已在 Atlas 200I DK A2 / Ascend 310B4 上用 CANN 7.0 RC1 实测的 CANN v1/v2。
 
 ## 目录概览
 
@@ -17,7 +17,7 @@ OpsFromScratch 用于学习 CUDA 与 CANN 并行计算，并以可测试、可�
 
 | 算子 | CUDA | CANN |
 |---|---|---|
-| add | v1/v2 已在 RTX 4060 Laptop GPU 上构建、测试和测量 | v1 已在 Atlas 200I DK A2 / Ascend 310B4、CANN 7.0 RC1 上构建、测试和测量 |
+| add | v1/v2 已在 RTX 4060 Laptop GPU 上构建、测试和测量 | v1/v2 已在 Atlas 200I DK A2 / Ascend 310B4、CANN 7.0 RC1 上构建、测试和测量 |
 
 查看 YAML 配置中的可选源码文件：
 
@@ -50,7 +50,7 @@ CPU-only 主机可查看和打包源码；不会因此安装或调用 CUDA/CANN 
     python3 tools/ops.py benchmark operators/add/operator.yaml --backend cann
     ./build/add/cann/add_kernel_v1__add_host_v1/add_demo
 
-CANN v1 当前针对板端 dav-m300，使用 CANN 7.0 RC1 可编译的标量 CCE kernel 与 ACL host 调度；它未在其他 SoC/SDK 组合上验证。具体设备和实测结果写在 operators/add/operator.yaml 与 operators/add/tests/cann/ 的记录中。没有 toolkit/device 时构建或设备测试会明确失败/Skip，不把它们算作通过。
+CANN v1 是单元素标量循环，v2 每轮展开处理四个元素；两者均使用 ACL host 调度并针对 dav-m300。v2 是指令级并行候选，不声称使用 SIMD 指令或在其他 SoC/SDK 上可用。具体设备和实测结果写在 operators/add/operator.yaml 与 operators/add/tests/cann/ 的记录中。没有 toolkit/device 时构建或设备测试会明确失败/Skip，不把它们算作通过。
 
 Benchmark 规模与迭代次数来自 operator.yaml，报告记录设备、源码选择、输入规模、编译器/runtime、显存读数、延迟和估算带宽；未实测的数据不会填入。
 

@@ -17,7 +17,9 @@
 - 第一版仅支持 float32，逻辑 shape 为 [N]；多维数据由调用方展平。
 - 不支持 stride 和广播；输出不得与输入发生破坏读取的重叠别名。
 - CUDA v1 为标量一线程一元素；v2 对齐时使用 float4 并对未对齐输入回退到标量。
-- CANN v1 使用 block_idx 和 block_num 的 grid-stride 循环，并在当前单 AI Core 板卡上按单 block 调度。该实现面向已验证的 dav-m300 / CANN 7.0 RC1 环境。
+- CANN v1 使用 block_idx 和 block_num 的 grid-stride 循环逐元素计算。
+- CANN v2 每轮展开四个独立的标量加法，尾部逐元素保护，以尝试增加指令级并行；不承诺编译成 SIMD 指令。
+- 两个 CANN host 当前都在已验证的单 AI Core 板卡上发起单 block，均面向 dav-m300 / CANN 7.0 RC1。
 
 ## 数值精度
 
@@ -26,7 +28,7 @@
 ## 后端状态
 
 - CUDA：标量与向量化两组 kernel/host 源文件均在 nvcc 12.6、CUDA Runtime 12.6 和 RTX 4060 Laptop GPU 上构建，并通过 correctness 与内存测试。benchmark 的真实记录在 CUDA 测试结果目录。
-- CANN：v1 已在 Atlas 200I DK A2（Ascend 310B4）、CANN 7.0 RC1、dav-m300 上构建运行，通过空输入、单元素、非整齐尾部、非法参数测试；设备内存评估和性能记录在 CANN 测试结果目录。CANN 7.0 RC1 缺少该目标可用的高层 TPipe/Ascend C vector header 路径，当前 v1 是便于验证调度和访存的标量 CCE kernel；没有声称其他 SDK/SoC 已验证。
+- CANN：v1/v2 均已在 Atlas 200I DK A2（Ascend 310B4）、CANN 7.0 RC1、dav-m300 上构建运行，通过空输入、单元素、非整齐尾部、非法参数测试；设备内存评估和按源码组合区分的性能记录在 CANN 测试结果目录。v2 是四元素展开候选，不宣称使用硬件 SIMD，也未在其他 SDK/SoC 验证。
 
 ## 验收标准
 

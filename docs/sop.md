@@ -31,7 +31,7 @@ CUDA 与 CANN 的 kernel/host 是各自后端的真实交付件。一个后端�
 
 kernel 和 host 文件名由开发者决定，不要求采用固定的版本编号格式。工具扫描 `src/<backend>/kernel/` 和 `src/<backend>/host/` 中对应后端的源文件；`tools/ops.py list` 用于查看候选文件。执行 build、test、benchmark 和 package 时，可分别用 `--kernel <文件名>`、`--host <文件名>` 指定源码。某一目录只有一个候选文件时可省略对应参数；存在多个候选时必须显式选择。构建输出按所选文件组合隔离。
 
-**add 示例：**v1 是用户给出的单线程单元素 kernel；v2 是对齐时每线程用 `float4` 处理四个元素、未对齐时回退标量 grid-stride 的候选。两者都使用同一 host API 和测试工程。CANN v1 当前已在 Atlas 200I DK A2（Ascend 310B4）和 CANN 7.0 RC1 上验证；它是面向 dav-m300 的标量 CCE 学习实现，不能据此推断其他 SoC/SDK 可用。
+**add 示例：**v1 是用户给出的单线程单元素 kernel；v2 是对齐时每线程用 `float4` 处理四个元素、未对齐时回退标量 grid-stride 的候选。两者都使用同一 host API 和测试工程。CANN v1/v2 当前已在 Atlas 200I DK A2（Ascend 310B4）和 CANN 7.0 RC1 上验证；v1 是标量循环，v2 每轮展开处理四个元素以尝试增加指令级并行，不声称使用 SIMD 指令或在其他 SoC/SDK 上可用。
 
 ## 4. 实现后端并建立测试工程
 
@@ -91,4 +91,4 @@ python3 tools/ops.py package operators/add/operator.yaml
 
 包放入 `dist/`，包括所选后端交付件、测试工程、必要元数据及使用说明。源码包不等同于已编译二进制包。提交前运行可用的正确性测试、检查包文件清单和 `git diff --check`，并分别汇报 PASS、FAIL、SKIP 与未能验证的部分。
 
-**add 当前状态：**v1/v2 已在 RTX 4060 Laptop GPU、nvcc 12.6、CUDA Runtime 12.6 上分别构建并通过 correctness 与 memory suites，并按相同输入规模和迭代数完成一轮 benchmark。新记录按 kernel/host 文件组合保存在独立 CSV；单轮性能数据不代表普遍结论。CANN v1 已在 Atlas 200I DK A2 / Ascend 310B4、CANN 7.0 RC1（dav-m300）上构建并通过 correctness 和设备内存评估；benchmark 记录事件计时、编译器/runtime、设备资源与校验状态。此实测仅适用于记录的板卡与工具链。
+**add 当前状态：**v1/v2 已在 RTX 4060 Laptop GPU、nvcc 12.6、CUDA Runtime 12.6 上分别构建并通过 correctness 与 memory suites，并按相同输入规模和迭代数完成一轮 benchmark。新记录按 kernel/host 文件组合保存在独立 CSV；单轮性能数据不代表普遍结论。CANN v1/v2 已在 Atlas 200I DK A2 / Ascend 310B4、CANN 7.0 RC1（dav-m300）上构建并分别通过 correctness 和设备内存评估；benchmark 按 kernel/host 组合记录事件计时、编译器/runtime、设备资源与校验状态。单轮结果不构成普遍性能结论；实测仅适用于记录的板卡与工具链。
