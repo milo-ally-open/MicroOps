@@ -1,75 +1,44 @@
 # add 使用说明
 
-## 配置入口
+## 配置与源码选择
 
-`operator.yaml` 包含算子根目录、后端 kernel/host 目录、默认源码文件、CMake 项目、tests 源码和结果路径，以及打包文件清单。当前默认后端是 CUDA，默认 kernel/host 为 `add_kernel_v2.cu` 和 `add_host_v2.cu`。这些文件名只是当前选择值；你可以在配置中改默认项，或在命令行临时覆盖。
+operator.yaml 是构建、测试、benchmark 和打包配置入口，包含 CUDA/CANN 源码目录、默认 kernel/host 文件、测试工程、benchmark 尺寸和结果路径。文件名只表示源码选择值，可继续增加 add_kernel_v3.cpp 等版本：
 
-查看配置里各后端的源码文件：
+    python3 tools/ops.py list operators/add/operator.yaml
 
-```bash
-python3 tools/ops.py list operators/add/operator.yaml
-```
+## CUDA
 
-## 构建、测试和 demo
+在安装 CUDA Toolkit、nvcc、CMake 3.21+ 的主机执行：
 
-安装工具脚本依赖后，从仓库根目录构建默认配置、运行测试并启动 demo：
+    python3 tools/ops.py build operators/add/operator.yaml --backend cuda --examples
+    python3 tools/ops.py test operators/add/operator.yaml --backend cuda
+    python3 tools/ops.py benchmark operators/add/operator.yaml --backend cuda
+    ./build/add/cuda/add_kernel_v2__add_host_v2/add_demo
 
-```bash
-python3 -m pip install -r requirements.txt
-python3 tools/ops.py build operators/add/operator.yaml --examples
-python3 tools/ops.py test operators/add/operator.yaml
-./build/add/cuda/add_kernel_v2__add_host_v2/add_demo
-```
+要选择另一组 kernel/host，可使用 --kernel 和 --host 临时覆盖，或改 operator.yaml 中对应的 default_file。
 
-若要临时选择 v1 文件组合，不必修改配置：
+## CANN
 
-```bash
-python3 tools/ops.py build operators/add/operator.yaml \
-  --kernel add_kernel_v1.cu --host add_host_v1.cu --examples
-python3 tools/ops.py test operators/add/operator.yaml \
-  --kernel add_kernel_v1.cu --host add_host_v1.cu
-./build/add/cuda/add_kernel_v1__add_host_v1/add_demo
-```
+CANN 已在 Atlas 200I DK A2 / Ascend 310B4、CANN 7.0 RC1 上实测。板端先加载 toolkit 环境，然后执行：
 
-host 与 kernel 需要按实现接口配对；CMake 会把配置或命令选择的 kernel 文件包含到所选 host 编译单元中。直接使用 CMake 时，传入相同文件名：
+    source /usr/local/Ascend/ascend-toolkit/latest/set_env.sh
+    python3 tools/ops.py build operators/add/operator.yaml --backend cann --examples
+    python3 tools/ops.py test operators/add/operator.yaml --backend cann
+    python3 tools/ops.py benchmark operators/add/operator.yaml --backend cann
+    ./build/add/cann/add_kernel_v1__add_host_v1/add_demo
 
-```bash
-cmake -S operators/add -B build/add/cuda/manual \
-  -DOPS_ENABLE_CUDA=ON -DOPS_ENABLE_CANN=OFF \
-  -DOPS_KERNEL_FILE=add_kernel_v2.cu -DOPS_HOST_FILE=add_host_v2.cu \
-  -DOPS_BUILD_EXAMPLES=ON
-cmake --build build/add/cuda/manual --config Release
-```
+CANN build 使用配置选择的 kernel/host 源文件，以 bisheng -x cce 构建共享库；当前 arch 设置为已验证板卡的 dav-m300。host API 接收 ACL device pointers 和 stream，负责入队，不负责分配或同步；调用方负责内存生命周期和同步。测试使用 ACL Runtime，不依赖 PyTorch。
 
-正确性测试覆盖 `N=0`、`N=1`、`N=259`、非法参数和未对齐输入。显存 suite 报告三缓冲申请量和设备内存读数，写入配置中的 `backends.cuda.tests.results.memory`。没有设备/驱动时设备用例显示 `SKIP`，不计为通过。构建目录按源码选择隔离。
+当前 CANN v1 为 CANN 7.0 RC1 目标可编译的标量 CCE 示例。它尚未在其他 Ascend SoC 或 SDK 上验证。缺少 CANN compiler/toolkit 时 CMake 给出明确错误；缺少运行设备时 CTest 对设备用例标为 Skip。
 
-## 性能评估
+## 测试、内存与性能
 
-正确性通过后运行配置中的 benchmark：
+CUDA/CANN 测试均在各自的 tests/<backend>/ 工程中。test 运行正确性和显存/设备内存评估；benchmark 根据 YAML 中 sizes、iterations 配置运行。CANN 当前配置为 [1024, 65536, 1048576] 个 float32 元素、每个规模 30 次 kernel 调用。事件计时后同步，延迟为平均设备执行时间；有效带宽用 12*N / latency 估算，不是内存控制器硬件计数器数据。
 
-```bash
-python3 tools/ops.py benchmark operators/add/operator.yaml
-```
-
-工具从 `operator.yaml` 的 `backends.cuda.benchmark.sizes` 和 `iterations` 读取默认规模与迭代数。这里的 size 是输入向量的 float32 元素个数，不是字节数。当前配置为 `[1024, 1048576, 16777216]`、每个规模迭代 `100` 次。修改 YAML 即可调整常用流程；`--sizes` 和 `--iterations` 可用于单次临时覆盖。
-
-这会评估配置当前选择的源码组合。比较另一组实现时覆盖 kernel 和 host：
-
-```bash
-python3 tools/ops.py benchmark operators/add/operator.yaml \
-  --kernel add_kernel_v1.cu --host add_host_v1.cu
-```
-
-默认 CSV 写入 `tests/cuda/performance/results/<kernel-stem>__<host-stem>.csv`，记录所选文件、设备、输入规模、编译器/runtime/driver、显存读数、延迟、估算有效带宽和校验状态。float32 加法按每元素读 A、读 B、写 C 估算 `12 * N` 字节；有效带宽不是硬件计数器测得的 DRAM 带宽。工具不会覆盖旧格式 `cuda.csv`。
-
-## CANN 状态
-
-`src/cann/` 和 `tests/cann/` 当前为 scaffold。`operator.yaml` 已留有 kernel/host/CMake/tests 路径配置，但没有实现源文件；脚本会明确提示缺少源码，不会声称可构建或可运行。
+CSV 结果在 tests/<backend>/<memory|performance>/results/。只有实际运行的测量会写入，设备、编译器/runtime、尺寸、显存、延迟和校验状态均随记录保留。
 
 ## 打包
 
-```bash
-python3 tools/ops.py package operators/add/operator.yaml
-```
+    python3 tools/ops.py package operators/add/operator.yaml --backend cann
 
-包会按当前选择写入 `dist/`，包含配置列出的构建、测试、文档文件和 backend 源码。源码包不表示当前机器已构建或通过设备验证。
+源码交付整理在 dist/。源码包本身不代表已经针对目标设备编译或验证。

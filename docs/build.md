@@ -7,7 +7,7 @@
 - Python 3.9+ 和 PyYAML：`python3 -m pip install -r requirements.txt`
 - CMake 3.21+
 - CUDA：兼容的 CUDA Toolkit/nvcc、C++17 host 编译器，以及设备测试所需驱动/设备
-- CANN：匹配的开发环境与 NPU；当前 add 后端和测试工程仍是 scaffold
+- CANN：匹配的 CANN toolkit/bisheng、ACL runtime 与 Ascend NPU；add CANN v1 已在 Atlas 200I DK A2 / Ascend 310B4、CANN 7.0 RC1 上验证
 
 ## 查看配置和源文件
 
@@ -67,7 +67,16 @@ CANN 可通过配置文件切换后端：
 python3 tools/ops.py build operators/add/operator.yaml --backend cann
 ```
 
-当前没有 CANN kernel/host 源文件，因此会明确提示 scaffold，不会报告构建成功。
+板端先加载 CANN 环境并执行构建、测试、benchmark：
+
+```bash
+source /usr/local/Ascend/ascend-toolkit/latest/set_env.sh
+python3 tools/ops.py build operators/add/operator.yaml --backend cann --examples
+python3 tools/ops.py test operators/add/operator.yaml --backend cann
+python3 tools/ops.py benchmark operators/add/operator.yaml --backend cann
+```
+
+CANN v1 目前针对已验证的 dav-m300，使用 bisheng + ACL Runtime，不依赖 PyTorch。其他 toolkit/SoC 未验证时不能据此标记可用。
 
 打包使用同一配置和当前默认源码选择：
 

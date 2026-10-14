@@ -365,7 +365,7 @@ def run_benchmark(args):
         print(f"ERROR: benchmark is not configured for backend {context['backend_name']}.", file=sys.stderr)
         return 2
     protocol = benchmark.get("protocol")
-    if protocol != "cuda_tsv_v1":
+    if protocol not in {"cuda_tsv_v1", "cann_tsv_v1"}:
         print(f"ERROR: unsupported benchmark protocol {protocol!r} in operator.yaml.", file=sys.stderr)
         return 2
     tests = context["backend"].get("tests", {})
@@ -394,7 +394,7 @@ def run_benchmark(args):
     command = ["cmake", "-S", str(test_project), "-B", str(build_dir),
                *source_definitions(context, {"options": options}, include_tests=True)]
     configured = run(command, missing_tool_message=
-                     "ERROR: CMake and CUDA Toolkit are required to build this benchmark.")
+                     "ERROR: CMake and the selected backend toolchain are required to build this benchmark.")
     if configured is None:
         return 127
     if configured.returncode != 0:
@@ -428,6 +428,10 @@ def run_benchmark(args):
                      if "release" in line.lower()]
             if lines:
                 compiler_version = lines[-1]
+            else:
+                compiler_version = next((line.strip() for line in
+                                         (result.stdout or result.stderr).splitlines()
+                                         if line.strip()), "unavailable")
 
     timestamp = datetime.now(timezone.utc).isoformat(timespec="seconds")
     rows = []
@@ -436,7 +440,8 @@ def run_benchmark(args):
         if measured is None:
             return 127
         fields = measured.stdout.strip().split("\t")
-        if len(fields) != 16 or fields[0] != "CUDA_RESULT":
+        expected_tag = "CUDA_RESULT" if protocol == "cuda_tsv_v1" else "CANN_RESULT"
+        if len(fields) != 16 or fields[0] != expected_tag:
             print(measured.stderr or f"ERROR: unexpected evaluation output: {measured.stdout!r}", file=sys.stderr)
             return measured.returncode or 2
         try:
@@ -465,7 +470,9 @@ def run_benchmark(args):
             "host_file": context["host_file"], "device": device, "input_size": measured_size,
             "dtype": benchmark.get("dtype", "float32"), "compiler": benchmark.get("compiler", "nvcc"),
             "compiler_version": compiler_version,
-            "runtime": f"CUDA Runtime {runtime_version}; driver API {driver_version}",
+            "runtime": (f"CUDA Runtime {runtime_version}; driver API {driver_version}"
+                        if protocol == "cuda_tsv_v1"
+                        else f"CANN runtime {runtime_version}; driver version {driver_version}"),
             "iterations": iterations, "working_set_bytes": working_set,
             "device_memory_total_bytes": memory_total,
             "device_memory_free_before_bytes": memory_free_before,

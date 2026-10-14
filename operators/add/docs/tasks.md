@@ -1,14 +1,12 @@
 # add 实现任务
 
-- [x] 明确 float32 一维向量加法与 CUDA v1 范围。
-- [x] 建立 CUDA v1 kernel：全局索引、尾部保护、单线程单元素。
-- [x] 建立 CUDA v2 向量化候选：对齐时 float4 处理，未对齐时标量回退。
-- [x] 建立两组可分别选择的 CUDA host launch wrapper 和算子级构建入口。
-- [x] 建立可按 kernel/host 文件组合选择的 CUDA 正确性测试，包含边界、未对齐指针和非法参数检查。
-- [x] 建立 CUDA 显存评估与性能评估程序及真实历史测量记录。
-- [x] 完成独立 CUDA 测试工程配置，并在 nvcc 12.6 工具链上构建运行。
-- [x] 完成 CUDA memory suite 的设备运行并检查生成记录。
-- [ ] 实现 CANN kernel、host 调度和对应测试工程；当前目录仅为 scaffold。
-- [x] 分别构建并运行两组 kernel/host 文件的 correctness 与 memory suites。
-- [x] 使用相同设备、shape 和计时条件实测两组实现；只记录真实结果，不预设向量化实现更快。
-- [x] 为已验证的源码组合补充设备、工具链、资源与性能记录。
+- [x] 明确 float32 一维向量加法的共同语义和边界。
+- [x] 建立 CUDA v1 标量 kernel 与 host launch wrapper。
+- [x] 建立 CUDA v2 向量化候选与 host launch wrapper。
+- [x] 建立 CUDA 可选源码构建、correctness、显存评估和 benchmark。
+- [x] 在 RTX 4060 Laptop GPU 上验证 CUDA 源码组合并记录真实测量。
+- [x] 建立 CANN v1 标量 CCE kernel、ACL host wrapper 和 CMake/bisheng 构建入口。
+- [x] 建立 CANN correctness（N=0/1/259/1027、非法参数）、设备内存评估和事件 benchmark。
+- [x] 在 Atlas 200I DK A2 / Ascend 310B4、CANN 7.0 RC1（dav-m300）板端构建、测试和记录。
+- [ ] 在其他受支持 CANN 版本/SoC 上验证或升级到相应的高层 Ascend C vector API。
+- [ ] 通过同一设备、同一规模、同一测试条件比较后续 CANN 优化实现。

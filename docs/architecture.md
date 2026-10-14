@@ -14,4 +14,4 @@
 
 ## 当前能力
 
-`add` CUDA kernel/host 和历史设备测量记录已存在，但新的目录结构及独立测试工程尚待 CUDA 工具链复验。CANN 为 scaffold。具体状态以 `operators/add/operator.yaml` 为准。
+`add` 的 CUDA kernel/host 与测试工程已有设备验证；CANN v1 已在 Atlas 200I DK A2 / Ascend 310B4、CANN 7.0 RC1（dav-m300）上构建并通过设备测试。CANN v1 是已验证板卡上的标量 CCE 学习实现，不代表其他 SoC/SDK 可用。具体状态以 `operators/add/operator.yaml` 为准。
