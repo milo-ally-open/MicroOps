@@ -63,7 +63,7 @@ python3 tools/operator_cuda.py benchmark operators/add/operator.yaml
 在板端加载 CANN 环境后执行：
 
 ```bash
-source /usr/local/Ascend/ascend-toolkit/latest/set_env.sh
+source /usr/local/Ascend/ascend-toolkit/set_env.sh
 python3 tools/operator_cann.py build operators/add/operator.yaml --examples
 python3 tools/operator_cann.py test operators/add/operator.yaml
 python3 tools/operator_cann.py benchmark operators/add/operator.yaml

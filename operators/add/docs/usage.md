@@ -24,7 +24,7 @@ CUDA 与 CANN 脚本会先检查各自编译器（`nvcc` 或 `bisheng`）是否�
 
 CANN 已在 Atlas 200I DK A2 / Ascend 310B4、CANN 7.0 RC1 上实测。板端先加载 toolkit 环境，然后执行：
 
-    source /usr/local/Ascend/ascend-toolkit/latest/set_env.sh
+    source /usr/local/Ascend/ascend-toolkit/set_env.sh
     python3 tools/operator_cann.py build operators/add/operator.yaml --examples
     python3 tools/operator_cann.py test operators/add/operator.yaml
     python3 tools/operator_cann.py benchmark operators/add/operator.yaml
