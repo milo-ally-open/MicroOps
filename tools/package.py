@@ -24,7 +24,7 @@ PACKAGE_FILES = {
         "tests/cuda/memory/add_cuda_memory_eval.cu",
         "tests/cuda/performance/add_cuda_benchmark.cu",
         "examples/add_demo.cu",
-        "benchmarks/cuda/results/cuda.csv",
+        "tests/cuda/performance/results/cuda.csv",
     ],
 }
 

@@ -2,11 +2,11 @@
 
 ## 按算子组织
 
-每个 `operators/<name>/` 是独立交付单元，包含规格文档、CUDA/CANN 后端目录、独立测试工程、benchmark 记录、示例和动画源码。后端直接放在算子根目录，不再额外套 `backends/`。仓库不维护 CPU 算子实现。
+每个 `operators/<name>/` 是独立交付单元，包含规格文档、CUDA/CANN 后端目录、独立测试工程、测试评估记录、示例和动画源码。后端直接放在算子根目录，不再额外套 `backends/`。仓库不维护 CPU 算子实现。
 
 ## 测试工程
 
-`tests/cuda/` 和 `tests/cann/` 分别配置各自的工具链和运行环境，并直接使用同级设备实现作为被测对象。测试工程按 correctness、memory、performance 和可选 sanitizer 检查组织。评估结果由设备实测产生并记录环境信息；Skip、未实现和仅编译均不等于设备通过。
+`tests/cuda/` 和 `tests/cann/` 分别配置各自的工具链和运行环境，并直接使用同级设备实现作为被测对象。测试工程按 correctness、memory 和 performance 组织，评估结果保存在对应 suite 的 `results/` 中。评估结果由设备实测产生并记录环境信息；Skip、未实现和仅编译均不等于设备通过。
 
 ## 参考资料
 

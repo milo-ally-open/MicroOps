@@ -22,7 +22,7 @@ add_test(NAME add_cuda_correctness COMMAND add_cuda_correctness_test)
 set_tests_properties(add_cuda_correctness PROPERTIES SKIP_RETURN_CODE 77)
 
 set(ADD_CUDA_MEMORY_RESULTS
-    "${ADD_OPERATOR_ROOT}/benchmarks/cuda/results/memory.csv"
+    "${ADD_OPERATOR_ROOT}/tests/cuda/memory/results/memory.csv"
     CACHE FILEPATH "CSV path for real CUDA memory-evaluation records")
 add_executable(add_cuda_memory_eval memory/add_cuda_memory_eval.cu)
 target_link_libraries(add_cuda_memory_eval PRIVATE CUDA::cudart)

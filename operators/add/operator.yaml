@@ -17,9 +17,9 @@ tests:
   cuda_correctness: tests/cuda/correctness/add_cuda_test.cu
   cuda_memory: tests/cuda/memory/add_cuda_memory_eval.cu
   cuda_performance: tests/cuda/performance/add_cuda_benchmark.cu
-benchmark_results:
-  cuda: benchmarks/cuda/results/cuda.csv
-  cuda_memory: benchmarks/cuda/results/memory.csv
+test_results:
+  cuda_performance: tests/cuda/performance/results/cuda.csv
+  cuda_memory: tests/cuda/memory/results/memory.csv
 demo: examples/add_demo.cu
 docs:
   proposal: docs/proposal.md

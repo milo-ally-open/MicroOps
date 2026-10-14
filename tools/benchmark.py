@@ -47,7 +47,7 @@ def main():
     parser.add_argument("--sizes", type=positive_ints, default=[1024, 1048576])
     parser.add_argument("--iterations", type=int, default=100)
     parser.add_argument("--output", type=Path,
-                        help="CSV output (default: operators/<op>/benchmarks/cuda/results/cuda.csv)")
+                        help="CSV output (default: operators/<op>/tests/cuda/performance/results/cuda.csv)")
     parser.add_argument("--build-dir", type=Path,
                         help="test-project build directory (default: build/<op>/tests/cuda-benchmark)")
     parser.add_argument("--executable", type=Path, help="use an already-built benchmark executable")
@@ -147,7 +147,7 @@ def main():
             print(measured.stderr or f"CUDA benchmark exited {measured.returncode}", file=sys.stderr)
             return measured.returncode
 
-    output = args.output or (operator_root / "benchmarks" / "cuda" / "results" / "cuda.csv")
+    output = args.output or (operator_root / "tests" / "cuda" / "performance" / "results" / "cuda.csv")
     if not output.is_absolute():
         output = (Path.cwd() / output).resolve()
     output.parent.mkdir(parents=True, exist_ok=True)

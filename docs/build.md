@@ -38,7 +38,7 @@ python3 tools/benchmark.py --operator add \
   --sizes 1024,1048576,16777216 --iterations 100
 ```
 
-结果追加到 `operators/add/benchmarks/cuda/results/cuda.csv`，显存评估结果写入同目录的 `memory.csv`。新算子必须在自己的测试工程和元数据中登记对应的评估目标。
+结果追加到 `operators/add/tests/cuda/performance/results/cuda.csv`，显存评估结果写入 `operators/add/tests/cuda/memory/results/memory.csv`。新算子必须在自己的测试工程和元数据中登记对应的评估目标。
 
 ## CANN 与打包
 
@@ -53,4 +53,4 @@ python3 tools/test.py --operator add --backend cann
 python3 tools/package.py --operator add --backend cuda
 ```
 
-此前在 WSL 上运行过 add CUDA v1 的 smoke test 和多规模 benchmark，记录保存在 `operators/add/benchmarks/cuda/results/cuda.csv`。目录布局及独立测试工程调整后，需在 CUDA 工具链可用时重新验证。
+此前在 WSL 上运行过 add CUDA v1 的 smoke test 和多规模性能评估，记录保存在 `operators/add/tests/cuda/performance/results/cuda.csv`。目录布局及独立测试工程调整后，需在 CUDA 工具链可用时重新验证。

@@ -24,7 +24,7 @@ cmake --version
 
 ## 3. 建立算子目录和后端交付件
 
-每个算子直接在根目录放置 `cuda/` 和 `cann/`，不再套 `backends/`。按需建立 `kernel/`、`host/` 和后端构建文件；独立的后端测试工程放在 `tests/cuda/`、`tests/cann/`。同时维护 `docs/`、`benchmarks/<backend>/results/`、`examples/` 和 `animation/`。
+每个算子直接在根目录放置 `cuda/` 和 `cann/`，不再套 `backends/`。按需建立 `kernel/`、`host/` 和后端构建文件；独立的后端测试工程放在 `tests/cuda/`、`tests/cann/`。正确性、内存和性能评估及其结果都归入对应测试工程，例如 `tests/cuda/performance/results/`。同时维护 `docs/`、`examples/` 和 `animation/`。
 
 CUDA 与 CANN 的 kernel/host 是各自后端的真实交付件。一个后端缺少实现时，相关源码和测试目录只标记为 scaffold，构建和测试入口须明确失败或不可运行。构建产物、测试临时文件与动画视频只放在忽略的 `build/`、`dist/` 或媒体输出目录。
 
@@ -37,7 +37,6 @@ CUDA 与 CANN 的 kernel/host 是各自后端的真实交付件。一个后端�
 - `correctness/`：典型 shape、空/最小输入、尾部或非对齐 shape、非法参数、容差和输出校验。
 - `memory/`：理论工作集、实际申请字节、设备总量、分配前/分配后/释放后可用量、申请状态；必要时覆盖 workspace、临时张量和峰值估算。
 - `performance/`：warmup、多轮设备计时、延迟、吞吐、有效带宽或 FLOP/s 等适用指标。
-- `sanitizers/`：适用时提供越界、竞态、泄漏及未初始化内存检查入口。
 
 正确性通过和资源/性能评估是不同结论：benchmark 不代替完整正确性测试；构建成功也不证明设备结果正确。缺少编译器时配置需明确失败；缺少设备时测试标记 Skip 并说明原因，Skip 不能记为通过。
 
@@ -62,7 +61,7 @@ python3 tools/test.py --operator add --backend cuda
 
 性能只在正确性验证后运行。记录设备型号、shape/元素数、dtype、编译器及版本、驱动/runtime/SDK、构建选项、warmup、重复次数、计时范围、延迟、校验状态和适用的吞吐指标。有效带宽/FLOP/s 必须说明字节或操作数的计算方式；估算有效带宽不是硬件计数器读出的 DRAM 带宽。比较加速比时基线须为相同输入、环境和计时口径。
 
-没有实际运行的数据留空。每条记录保存到 `benchmarks/<backend>/results/`，不得编造性能数字或把历史数据改成当前环境结果。
+没有实际运行的数据留空。每条记录保存在对应测试 suite 的 `tests/<backend>/<suite>/results/`，不得编造性能数字或把历史数据改成当前环境结果。
 
 **add v1：**三块 float32 向量的理论工作集为 `3 * N * 4 = 12N` 字节。性能工具按 A/B 读取和 C 写回估算每轮流量 `12N`，使用设备计时器测 kernel，并将运行时、显存读数、延迟、估算有效带宽和校验状态写入 CSV。
 
@@ -85,4 +84,4 @@ python3 tools/package.py --operator add --backend cuda
 
 包放入 `dist/`，包括所选后端交付件、测试工程、必要元数据及使用说明。源码包不等同于已编译二进制包。提交前运行可用的正确性测试、检查包文件清单和 `git diff --check`，并分别汇报 PASS、FAIL、SKIP 与未能验证的部分。
 
-**add v1 当前状态：**历史 CUDA benchmark CSV 保留为已有实测记录，但新的根目录布局和测试工程待本机 CUDA 工具链复验；CANN 实现及 CANN 测试工程仍是 scaffold。
+**add v1 当前状态：**历史 CUDA 性能 CSV 保留为已有实测记录，位于 `tests/cuda/performance/results/`；新的根目录布局和测试工程待本机 CUDA 工具链复验；CANN 实现及 CANN 测试工程仍是 scaffold。

@@ -5,10 +5,9 @@ OpsFromScratch 用于从零学习 CUDA 与 CANN 算子开发，并按可测试�
 ## 目录概览
 
 - `operators/<op>/cuda/`、`operators/<op>/cann/`：各算子的设备 kernel、host 调度和后端构建配置。
-- `operators/<op>/tests/cuda/`、`operators/<op>/tests/cann/`：独立的正确性、内存、性能和可选 sanitizer 测试工程。
+- `operators/<op>/tests/cuda/`、`operators/<op>/tests/cann/`：独立的正确性、内存和性能评估工程；结果保存在对应 suite 的 `results/` 中。
 - `operators/<op>/reference/`：论文和参考资料预留目录；当前只包含 `.gitkeep`。
 - `operators/<op>/docs/`：算子提案、规格、任务和用法。
-- `operators/<op>/benchmarks/<backend>/results/`：实际运行后生成或追加的评估记录。
 - `docs/sop.md`：统一算子开发工作流。
 - `tools/`：按算子与后端构建、测试、benchmark、打包的入口。
 - `.agents/`、`plugins/`：可跟踪的项目级 Codex 技能和插件产物；`.codex/` 是被忽略的本地配置目录。
@@ -42,7 +41,7 @@ python3 tools/benchmark.py --operator add \
   --sizes 1024,1048576,16777216 --iterations 100
 ```
 
-真实测量追加到 `operators/add/benchmarks/cuda/results/cuda.csv`；测试工程的内存评估记录追加到 `memory.csv`。结果记录设备、输入规模、编译器/runtime、资源读数和测量数据；未运行的数据不会生成。
+性能测量追加到 `operators/add/tests/cuda/performance/results/cuda.csv`；显存评估记录追加到 `operators/add/tests/cuda/memory/results/memory.csv`。结果记录设备、输入规模、编译器/runtime、资源读数和测量数据；未运行的数据不会生成。
 
 ## CANN
 

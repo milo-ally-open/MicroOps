@@ -28,7 +28,7 @@ cmake --build build/add/cuda --config Release
 python3 tools/test.py --operator add --backend cuda
 ```
 
-正确性用例包括 `N=0`、`N=1`、非 block 对齐长度 `N=259`、负数长度和非法空指针。Memory suite 运行小规模三缓冲申请/释放评估，并将实测读数追加至 `benchmarks/cuda/results/memory.csv`。没有可用设备或驱动时，设备测试会显示 Skip；Skip 不代表通过。
+正确性用例包括 `N=0`、`N=1`、非 block 对齐长度 `N=259`、负数长度和非法空指针。Memory suite 运行小规模三缓冲申请/释放评估，并将实测读数追加至 `tests/cuda/memory/results/memory.csv`。没有可用设备或驱动时，设备测试会显示 Skip；Skip 不代表通过。
 
 CUDA 性能评估在 correctness 和 memory suites 之后显式运行：
 
@@ -37,7 +37,7 @@ python3 tools/benchmark.py --operator add \
   --sizes 1024,1048576,16777216 --iterations 100
 ```
 
-结果追加至 `benchmarks/cuda/results/cuda.csv`。每行包含设备、输入规模、编译器/runtime/driver、显存读数、分配状态、延迟、估算有效带宽及校验状态。流量按 A/B 读取和 C 写入估算为 `12 * N` 字节；它不是硬件计数器测得的 DRAM 带宽。
+结果追加至 `tests/cuda/performance/results/cuda.csv`。每行包含设备、输入规模、编译器/runtime/driver、显存读数、分配状态、延迟、估算有效带宽及校验状态。流量按 A/B 读取和 C 写入估算为 `12 * N` 字节；它不是硬件计数器测得的 DRAM 带宽。
 
 ## CANN 状态
 
