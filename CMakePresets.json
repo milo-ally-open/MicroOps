@@ -47,4 +47,3 @@
     { "name": "ascendc", "configurePreset": "ascendc", "configuration": "Release", "output": { "outputOnFailure": true } }
   ]
 }
-\n

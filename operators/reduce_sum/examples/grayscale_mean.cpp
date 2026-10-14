@@ -36,4 +36,3 @@ int main() {
               << "Gray mean (0-255 scale): " << mean_gray << '\n';
     return 0;
 }
-\n

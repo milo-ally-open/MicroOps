@@ -60,4 +60,3 @@ int main(int argc, char** argv) {
               << std::fixed << std::setprecision(6) << average_us << '\n';
     return 0;
 }
-\n

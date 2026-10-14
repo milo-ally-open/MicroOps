@@ -66,4 +66,3 @@ int main() {
     std::cout << "All CPU reference checks passed\n";
     return 0;
 }
-\n

@@ -18,5 +18,3 @@ set_target_properties(reduce_sum_cuda PROPERTIES
     CUDA_STANDARD 17
     CUDA_STANDARD_REQUIRED ON
     CUDA_EXTENSIONS OFF)
-
-\n

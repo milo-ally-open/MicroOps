@@ -59,4 +59,3 @@ cudaError_t reduce_sum_cuda(const float* device_input,
 }
 
 }  // namespace ops
-\n

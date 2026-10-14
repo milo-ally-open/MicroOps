@@ -14,4 +14,3 @@ cudaError_t reduce_sum_cuda(const float* device_input,
                             cudaStream_t stream);
 
 }  // namespace ops
-\n

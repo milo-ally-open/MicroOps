@@ -68,4 +68,3 @@ __global__ void finish_reduce_sum(const float* partials,
 }
 
 }  // namespace ops::cuda_detail
-\n

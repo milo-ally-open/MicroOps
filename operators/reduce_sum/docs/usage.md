@@ -48,5 +48,3 @@ python tools/package.py --operator reduce_sum --backend cpu
 ```
 
 benchmark 将真实测量写至 `build/benchmark_results.csv`，包含设备、编译器/运行时和输入规模。包位于 `dist/reduce_sum-0.1.0-cpu/`；存在同名输出时需显式传 `--force` 才会替换。
-
-\n

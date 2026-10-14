@@ -20,4 +20,3 @@ float reduce_sum(const float* input, const std::size_t count) {
 }
 
 }  // namespace ops
-\n

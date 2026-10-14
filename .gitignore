@@ -32,5 +32,3 @@ Thumbs.db
 # Manim renders and transient media; keep scene source in operators/*/animation
 media/
 **/animation/media/
-
-\n

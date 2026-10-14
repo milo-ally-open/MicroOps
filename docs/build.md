@@ -36,5 +36,3 @@ python tools/build.py --backend ascendc
 `python tools/test.py` 会构建并运行 CTest。请求设备后端时，脚本分别报告 CPU 测试结果与未实现/不可运行的设备测试状态。`python tools/benchmark.py --backend cpu` 会实际运行 CPU benchmark，并将设备、编译器、运行时、输入规模和时间写入 CSV；没有运行的数据不生成测量行。`python tools/package.py --operator reduce_sum --backend cpu` 将所选实现、元数据和使用说明复制到 `dist/`。
 
 本机初始化时没有 CMake、Python、CUDA Toolkit、CANN/Ascend C 编译器或可确认的设备，因此无法报告编译、测试或性能结果。安装依赖后可按以上命令验证。
-
-\n

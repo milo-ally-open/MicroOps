@@ -68,5 +68,3 @@ python tools/package.py --operator reduce_sum --backend cpu
 Visual Studio 等多配置生成器会将 Release demo 放在 `build/cpu/Release/`；单配置生成器直接放在 `build/cpu/`。
 
 benchmark 默认写入被忽略的 `build/benchmark_results.csv`；只有实际执行后才会包含测量数据。package 输出到 `dist/`，不修改源码目录。
-
-\n

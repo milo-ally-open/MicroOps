@@ -46,5 +46,3 @@ if(OPS_BUILD_BENCHMARKS)
         operators/reduce_sum/benchmarks/cpu_benchmark.cpp)
     target_link_libraries(reduce_sum_cpu_benchmark PRIVATE reduce_sum_reference)
 endif()
-
-\n

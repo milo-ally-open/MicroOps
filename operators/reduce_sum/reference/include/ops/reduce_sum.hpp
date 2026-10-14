@@ -9,4 +9,3 @@ namespace ops {
 float reduce_sum(const float* input, std::size_t count);
 
 }  // namespace ops
-\n
