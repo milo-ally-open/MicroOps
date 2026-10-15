@@ -10,7 +10,7 @@ OpsFromScratch 用于学习 CUDA 与 CANN 并行计算，并以可测试、可�
 - operators/<op>/examples/、operators/<op>/animation/：小型 demo 和动画源码。
 - docs/sop.md：通用算子开发工作流。
 - tools/operator_cuda.py、tools/operator_cann.py：分别用于 CUDA 和 CANN 的构建、测试、性能评估和打包；共享逻辑位于 tools/operator_common.py。
-- .agents/、plugins/：可跟踪的项目级 Codex 技能和插件产物；.codex/ 是被忽略的本地配置目录。
+- skills/、plugins/：可跟踪的项目级 Codex 技能和插件产物；.codex/ 是被忽略的本地配置目录副本。
 - build/、dist/：本地生成目录，已加入 .gitignore。
 
 ## 已有算子

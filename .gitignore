@@ -33,3 +33,8 @@ Thumbs.db
 # Manim renders and transient media; keep scene source in operators/*/animation
 media/
 **/animation/media/
+
+# One-off Manim generators, scratch scripts, and render intermediates
+/build/manim/
+**/animation/_scratch/
+**/animation/*.tmp.py
