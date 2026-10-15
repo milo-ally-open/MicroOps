@@ -97,12 +97,23 @@ python skills/ops-manim/scripts/manim_workflow.py render operators/add/animation
 
 The helper is a persistent, reusable workflow tool shipped with the tracked skill; it is not a one-off animation generator. Keep the copy at `.codex/skills/ops-manim/` in sync when changing the skill or helper. `.codex/` is ignored local configuration; the repository-owned source of truth is `skills/ops-manim/`.
 
+The companion `scripts/manim_video_review.py` supports repeatable media review:
+
+```bash
+python skills/ops-manim/scripts/manim_video_review.py info build/manim/add/add_v1/candidates/add-v1-a/videos/add_v1/720p30/AddV1Walkthrough.mp4
+python skills/ops-manim/scripts/manim_video_review.py audit build/manim/add/add_v1/candidates/add-v1-a/videos/add_v1/720p30/AddV1Walkthrough.mp4
+python skills/ops-manim/scripts/manim_video_review.py contact-sheet build/manim/add/add_v1/candidates/add-v1-a/videos/add_v1/720p30/AddV1Walkthrough.mp4 --interval 2 --columns 4
+python skills/ops-manim/scripts/manim_video_review.py frames build/manim/add/add_v1/candidates/add-v1-a/videos/add_v1/720p30/AddV1Walkthrough.mp4 --times 0,3,8,14
+```
+
+`info` reads codec, resolution, frame rate, duration, size, and audio-stream count with `ffprobe`. `audit` validates metadata and decodes the full video stream with FFmpeg; it does not judge visual quality or technical claims. `contact-sheet` samples evenly spaced frames and writes one labeled PNG; `frames` extracts exact timestamps to separate PNGs. Generated review artifacts are restricted to `build/manim/`, and existing paths are never overwritten. Both `ffmpeg` and `ffprobe` are required for audit and frame operations; contact sheets also use Pillow from the active Manim environment. Review the contact sheet first, then inspect individual frames or the video around transitions where text, masks, or data movement may be clipped.
+
 ## Render and review loop
 
 1. Confirm the exact source files, scene names, learning objective, and any user preferences. Inspect local Manim dependencies with the helper.
 2. Implement the simplest scene that explains the selected code path. Prefer explicit, named objects and small helper functions over a monolithic `construct()` method. Keep representative tensor values deterministic. Break a longer lesson into named `Scene` classes when that helps review or selective rerendering.
 3. Render each preview/revision as a distinct candidate under `build/manim/<op>/<scene>/candidates/<candidate-id>/`. Keep all generated videos, frames, and review notes in `build/`; do not copy candidates into the tracked source tree while they are awaiting review. Use a fresh candidate ID for each revision so a new render cannot silently replace an earlier one.
-4. Render the requested review quality for the same candidate, or create a new candidate when the scene changes. Inspect the actual video or representative frames for clipping, CJK glyphs, equation legibility, timing, visual continuity, hardware-model clarity, and source-to-scene fidelity. Reading the Python file alone is not visual review.
+4. Render the requested review quality for the same candidate, or create a new candidate when the scene changes. Use `manim_video_review.py info` and `contact-sheet` to inspect the render; extract exact timestamps around any questionable transition with `frames`. Check clipping, CJK glyphs, equation legibility, timing, visual continuity, hardware-model clarity, and source-to-scene fidelity. Reading the Python file alone is not visual review.
 5. Present the candidate paths and a concise description of what each version shows. Wait for the user to explicitly approve one before adding a video to the repository. After approval, copy only the selected MP4 to `operators/<op>/animation/videos/<scene>-<candidate-id>.mp4`; keep other candidates in ignored `build/`. Never treat a render completing as approval to publish it.
 6. If the user gives timestamped feedback, inspect the corresponding frame before editing. Render the revision under a new candidate ID, review it, and wait for approval before publishing.
 
@@ -124,7 +135,7 @@ Use installed CLI `--help` if options vary by Manim version. Avoid preview flags
 
 ## Source hygiene and delivery
 
-Put final, maintainable Manim scene source and intentional small source assets in `operators/<op>/animation/`. Keep all unapproved videos, frames, scratch scripts, notebooks, generated data, Manim `media/`, TeX cache, and logs under `build/manim/<op>/`; `/build/manim/` is explicitly ignored. Only after the user approves a candidate may its MP4 be copied into `operators/<op>/animation/videos/` as a deliberate repository deliverable. Do not put temporary scripts in `tools/` or alongside final animation source, and do not commit them. The reusable `skills/ops-manim/scripts/manim_workflow.py` is an intentional tracked utility, not a temporary generator. Do not overwrite existing scenes or assets; inspect and edit them in place when the request is to revise an existing animation.
+Keep the editable Manim scene `.py` beside the deliverable: an MP4 is a flattened render and its text/shapes are not separate editing layers. Future changes belong in the scene source and must be rendered again. Put final scene source and intentional small source assets in `operators/<op>/animation/`. Keep all unapproved videos, frames, scratch scripts, notebooks, generated data, Manim `media/`, TeX cache, and logs under `build/manim/<op>/`; `/build/manim/` is explicitly ignored. Only after the user approves a candidate may its MP4 be copied into `operators/<op>/animation/videos/` as a deliberate repository deliverable. Do not put temporary scripts in `tools/` or alongside final animation source, and do not commit them. The reusable scripts in `skills/ops-manim/scripts/` are intentional tracked utilities, not temporary generators. Do not overwrite existing scenes or assets; inspect and edit them in place when the request is to revise an existing animation.
 
 When finished, report the source files changed, scene classes created, exact render status/quality, what was visually reviewed, and any missing dependencies or unverified claims. Never call a render successful if Manim failed or if only source/static checks ran.
 
