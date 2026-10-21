@@ -32,6 +32,14 @@ Use a small, concrete tensor or matrix to show what workers do in parallel, then
 
 Use these visual tools selectively: color each worker/lane consistently; draw vector indices or matrix tiles; animate load → compute → store; expose reuse with values remaining in a buffer; and show tail lanes as inactive. Small illustrative data should preserve the real indexing rules and be labeled as a toy example when its size differs from the actual launch.
 
+### Activation and hardware walkthroughs
+
+- For common activation operators (ReLU, GELU, SiLU, sigmoid, tanh and similar functions), draw the function curve over a labeled input range. Mark representative inputs from the scene and connect each marker to its output value so the graph explains the same mapping as the kernel example. Match the curve to the exact implementation: for example, show the tanh approximation for GELU when that is what the kernel computes, and distinguish sigmoid's stable piecewise evaluation from the single smooth mathematical curve. Call out meaningful regions such as a threshold, zero crossing, saturation, or negative tail when they help explain the function.
+- For elementwise CUDA kernels, show how the host chooses launch geometry, how `blockIdx` and `threadIdx` form the global index, and how a logical thread handles its element. Connect a warp's lanes to contiguous input and output positions, then show the kernel's actual load → arithmetic/function → store path. If the input length is not a multiple of the block size, visualize a small tail and the real bounds guard.
+- Include the GPU hierarchy when it clarifies the implementation: grid → blocks → scheduler → SM → warp lanes. A block executes on one SM, but never claim a fixed SM assignment, block order, concurrency, register allocation, or memory transaction count without evidence. Label hierarchy and lane drawings as conceptual when they explain the model rather than report a captured run.
+- For binary elementwise operators, show both input values at the same index converging on one thread's calculation and the result returning to the matching output index. For unary functions, use the plotted curve and sample table to explain the per-index mapping.
+- Adapt the same story to CANN from its actual host/kernel code: show its real block/tile/work-item mapping and supported GM/UB/vector or cube movement. Do not transplant CUDA warps/SMs onto Ascend C scenes.
+
 ## Repository discovery and story design
 
 Before editing, check Git status and inspect the target operator's `docs/spec.md`, `docs/usage.md`, `operator.yaml`, selected backend kernel and host files, and relevant tests/examples. Preserve unrelated user changes. If the operator or variant is ambiguous, use repository defaults when unambiguous; otherwise ask one focused question.

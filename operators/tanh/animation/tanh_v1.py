@@ -1,4 +1,4 @@
-"""Teaching scene based on src/cuda/kernel/tanh_kernel_v1.cu."""
+"""CUDA v1 walkthrough for the tanh activation function."""
 import sys
 from pathlib import Path
 
@@ -13,4 +13,6 @@ class TanhV1Walkthrough(ElementwiseV1Scene):
     INPUT_LABELS = ("X[0]=-2", "X[1]=-0.5", "X[2]=0.5", "X[3]=2")
     OUTPUTS = ("Y[0]≈-0.9640", "Y[1]≈-0.4621", "Y[2]≈0.4621", "Y[3]≈0.9640")
     CODE = "Y[idx] = tanhf(x);"
-    TEACHING_NOTE = "输入输出逐元素对应，输出被压缩到 (-1, 1)。"
+    GRAPH_KEY = "tanh"
+    GRAPH_Y_RANGE = (-1.2, 1.2)
+    GRAPH_NOTE = "输出被压缩到 (-1, 1)；输入绝对值增大时曲线逐渐饱和。"

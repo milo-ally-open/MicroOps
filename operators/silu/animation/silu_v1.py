@@ -1,4 +1,4 @@
-"""Teaching scene based on src/cuda/kernel/silu_kernel_v1.cu."""
+"""CUDA v1 walkthrough for the SiLU activation function."""
 import sys
 from pathlib import Path
 
@@ -8,9 +8,11 @@ from elementwise_scene import ElementwiseV1Scene  # noqa: E402
 
 
 class SiluV1Walkthrough(ElementwiseV1Scene):
-    OPERATOR = "SiLU"
+    OPERATOR = "SiLU · x × sigmoid(x)"
     FORMULA = "Y[i] = X[i] / (1 + exp(-X[i]))"
     INPUT_LABELS = ("X[0]=-2", "X[1]=-0.5", "X[2]=0.5", "X[3]=2")
     OUTPUTS = ("Y[0]≈-0.2384", "Y[1]≈-0.1888", "Y[2]≈0.3112", "Y[3]≈1.7616")
     CODE = "Y[idx] = x / (1.0f + expf(-x));"
-    TEACHING_NOTE = "SiLU 用 sigmoid 门控输入；每个线程只处理自己的 x。"
+    GRAPH_KEY = "silu"
+    GRAPH_Y_RANGE = (-1.0, 4.5)
+    GRAPH_NOTE = "SiLU = x·sigmoid(x)：负区间保留小幅负值，正区间逐渐接近恒等映射。"
