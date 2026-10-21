@@ -12,5 +12,5 @@ class ReluV1Walkthrough(ElementwiseV1Scene):
     FORMULA = "Y[i] = max(X[i], 0)   (NaN is preserved)"
     INPUT_LABELS = ("X[0]=-2", "X[1]=-0.5", "X[2]=0.5", "X[3]=2")
     OUTPUTS = ("Y[0]=0", "Y[1]=0", "Y[2]=0.5", "Y[3]=2")
-    CODE = "Y[idx] = (x > 0 || isnan(x)) ? x : 0;"
+    CODE = "Y[idx] = (x > 0.0f ? x : (x != x ? x : 0.0f));"
     TEACHING_NOTE = "负数映射到 0；当前实现保留 NaN。"

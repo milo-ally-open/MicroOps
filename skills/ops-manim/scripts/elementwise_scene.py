@@ -47,13 +47,46 @@ class ElementwiseV1Scene(Scene):
         note.to_edge(DOWN, buff=0.28)
         self.play(Write(note))
 
-        self.play(FadeOut(cards), FadeOut(note))
+        self.play(FadeOut(cards), FadeOut(note), FadeOut(formula))
+
+        # Show a real tail guard from this repository's 256-thread CUDA launch.
+        tail_title = Text("边界保护：最后一个 block 的尾部", font="SimSun", font_size=25, color=YELLOW)
+        tail_title.move_to(UP * 1.5)
+        tail_shape = Text("N = 258  →  grid = 2 blocks × 256 threads/block",
+                          font="DejaVu Sans Mono", font_size=20, color=GRAY_A)
+        tail_shape.next_to(tail_title, DOWN, buff=0.2)
+        lane_cells = VGroup()
+        for thread_idx in range(4):
+            idx = 256 + thread_idx
+            active = idx < 258
+            cell = RoundedRectangle(width=2.15, height=1.38, corner_radius=0.1)
+            cell.set_stroke(GREEN_C if active else GRAY_B, 2)
+            cell.set_fill(GREEN_E if active else GRAY_E, opacity=0.45 if active else 0.18)
+            cell.move_to([(thread_idx - 1.5) * 2.45, -0.2, 0])
+            thread = Text(f"threadIdx={thread_idx}", font_size=16,
+                          color=GREEN_A if active else GRAY_A).move_to(cell.get_top() + DOWN * 0.32)
+            index = Text(f"idx={idx}", font_size=18).next_to(thread, DOWN, buff=0.16)
+            state = Text("valid" if active else "masked", font_size=16,
+                         color=GREEN_A if active else GRAY_B).next_to(index, DOWN, buff=0.12)
+            lane_cells.add(VGroup(cell, thread, index, state))
+        guard = Text("if (idx < N)", font="DejaVu Sans Mono", font_size=24, color=YELLOW_A)
+        guard.move_to(DOWN * 1.35)
+        omitted = Text("仅放大 threadIdx 0–3；block 中其余 252 个线程未画出。",
+                       font="SimSun", font_size=17, color=GRAY_A)
+        omitted.to_edge(DOWN, buff=0.2)
+        self.play(Write(tail_title), FadeIn(tail_shape),
+                  LaggedStart(*(FadeIn(cell, shift=UP * 0.1) for cell in lane_cells), lag_ratio=0.1))
+        self.play(Write(guard), FadeIn(omitted))
+        self.wait(1.5)
+        self.play(FadeOut(tail_title), FadeOut(tail_shape), FadeOut(lane_cells),
+                  FadeOut(guard), FadeOut(omitted))
+
         code = Text(self.CODE, font="DejaVu Sans Mono", font_size=23, color=YELLOW_A)
         code.scale(min(1.0, 12.5 / code.width)).move_to(DOWN * 0.1)
         # The source cue follows the ownership view; it is not a physical timeline.
         self.play(FadeIn(code, shift=UP * 0.12))
         self.wait(1.2)
-        self.play(FadeOut(code), FadeOut(formula))
+        self.play(FadeOut(code))
 
         memory_title = Text("数据路径（概念示意）", font_size=29, color=YELLOW)
         memory_title.move_to(UP * 1.2)
