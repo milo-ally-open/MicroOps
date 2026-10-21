@@ -1,0 +1,150 @@
+name: sub
+version: 0.1.0
+root: .
+default_backend: cuda
+paths:
+  build_root: build
+  dist_root: dist
+docs:
+  proposal: docs/proposal.md
+  spec: docs/spec.md
+  tasks: docs/tasks.md
+  usage: docs/usage.md
+backends:
+  cuda:
+    status: scaffold
+    kernel:
+      dir: src/cuda/kernel
+      extensions:
+      - .cu
+      default_file: sub_kernel_v2.cu
+      cmake_variable: OPS_KERNEL_FILE
+      dir_cmake_variable: OPS_KERNEL_DIR
+    host:
+      dir: src/cuda/host
+      extensions:
+      - .cu
+      default_file: sub_host_v2.cu
+      cmake_variable: OPS_HOST_FILE
+      dir_cmake_variable: OPS_HOST_DIR
+    build:
+      project: .
+      options:
+        OPS_ENABLE_CUDA: true
+        OPS_ENABLE_CANN: false
+      examples_option: OPS_BUILD_EXAMPLES
+    tests:
+      project: tests/cuda
+      correctness: tests/cuda/correctness/sub_cuda_test.cu
+      memory: tests/cuda/memory/sub_cuda_memory_eval.cu
+      performance: tests/cuda/performance/sub_cuda_benchmark.cu
+      cmake_variables:
+        correctness: OPS_TEST_CORRECTNESS_SOURCE
+        memory: OPS_TEST_MEMORY_SOURCE
+        performance: OPS_TEST_PERFORMANCE_SOURCE
+        memory_results: SUB_CUDA_MEMORY_RESULTS
+      options: {}
+      results:
+        memory: tests/cuda/memory/results/memory.csv
+        performance: tests/cuda/performance/results
+    benchmark:
+      protocol: cuda_tsv_v1
+      target: sub_cuda_benchmark
+      executable: sub_cuda_benchmark
+      compiler: nvcc
+      dtype: float32
+      sizes:
+      - 1024
+      - 1048576
+      - 16777216
+      iterations: 100
+      max_input: 2147483647
+      options:
+        OPS_BUILD_PERFORMANCE: true
+    demo: examples/cuda/sub_demo.cu
+    package:
+      include_all_sources: true
+      include:
+      - CMakeLists.txt
+      - operator.yaml
+      - docs/proposal.md
+      - docs/spec.md
+      - docs/tasks.md
+      - docs/usage.md
+      - src/cuda/CMakeLists.txt
+      - src/cuda/host/kernel_selection.h.in
+      - src/cuda/include/ops/sub_cuda.hpp
+      - tests/cuda/CMakeLists.txt
+      - tests/cuda/correctness/sub_cuda_test.cu
+      - tests/cuda/memory/sub_cuda_memory_eval.cu
+      - tests/cuda/performance/sub_cuda_benchmark.cu
+      - examples/cuda/sub_demo.cu
+  cann:
+    status: scaffold
+    kernel:
+      dir: src/cann/kernel
+      extensions:
+      - .cpp
+      - .cc
+      - .cxx
+      default_file: sub_kernel_v1.cpp
+      cmake_variable: OPS_KERNEL_FILE
+      dir_cmake_variable: OPS_KERNEL_DIR
+    host:
+      dir: src/cann/host
+      extensions:
+      - .cpp
+      - .cc
+      - .cxx
+      default_file: sub_host_v1.cpp
+      cmake_variable: OPS_HOST_FILE
+      dir_cmake_variable: OPS_HOST_DIR
+    build:
+      project: src/cann
+      options: {}
+      examples_option: OPS_BUILD_EXAMPLES
+    tests:
+      project: tests/cann
+      correctness: tests/cann/correctness/sub_cann_test.cpp
+      memory: tests/cann/memory/sub_cann_memory_eval.cpp
+      performance: tests/cann/performance/sub_cann_benchmark.cpp
+      cmake_variables:
+        correctness: OPS_TEST_CORRECTNESS_SOURCE
+        memory: OPS_TEST_MEMORY_SOURCE
+        performance: OPS_TEST_PERFORMANCE_SOURCE
+        memory_results: SUB_CANN_MEMORY_RESULTS
+      options: {}
+      results:
+        memory: tests/cann/memory/results/memory.csv
+        performance: tests/cann/performance/results
+    benchmark:
+      protocol: cann_tsv_v1
+      target: sub_cann_benchmark
+      executable: sub_cann_benchmark
+      compiler: bisheng
+      dtype: float32
+      sizes:
+      - 1024
+      - 65536
+      - 1048576
+      iterations: 30
+      max_input: 2147483647
+      options:
+        OPS_BUILD_PERFORMANCE: true
+    demo: examples/cann/sub_demo.cpp
+    package:
+      include_all_sources: true
+      include:
+      - operator.yaml
+      - docs/proposal.md
+      - docs/spec.md
+      - docs/tasks.md
+      - docs/usage.md
+      - src/cann/CMakeLists.txt
+      - src/cann/host/kernel_selection.h.in
+      - src/cann/include/ops/sub_cann.hpp
+      - tests/cann/CMakeLists.txt
+      - tests/cann/correctness/sub_cann_test.cpp
+      - tests/cann/memory/sub_cann_memory_eval.cpp
+      - tests/cann/performance/sub_cann_benchmark.cpp
+      - examples/cann/sub_demo.cpp

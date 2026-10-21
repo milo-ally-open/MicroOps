@@ -1,6 +1,6 @@
 # OpsFromScratch
 
-OpsFromScratch 用于学习 CUDA 与 CANN 并行计算，并以可测试、可评估、可打包的方式组织设备算子工程。仓库不维护 CPU 算子后端。当前包含 add：CUDA v1/v2 示例，以及已在 Atlas 200I DK A2 / Ascend 310B4 上用 CANN 7.0 RC1 实测的 CANN v1/v2。
+OpsFromScratch 用于学习 CUDA 与 CANN 并行计算，并以可测试、可评估、可打包的方式组织设备算子工程。仓库不维护 CPU 算子后端。当前包含已验证的 `add`，以及新建但尚未构建或设备验证的 `sub`、`mul`、`div` scaffold。
 
 ## 目录概览
 
@@ -18,6 +18,11 @@ OpsFromScratch 用于学习 CUDA 与 CANN 并行计算，并以可测试、可�
 | 算子 | CUDA | CANN |
 |---|---|---|
 | add | v1/v2 已在 RTX 4060 Laptop GPU 上构建、测试和测量 | v1/v2 已在 Atlas 200I DK A2 / Ascend 310B4、CANN 7.0 RC1 上构建、测试和测量 |
+| sub | v1/v2 scaffold，尚未构建或设备测试 | v1/v2 scaffold，尚未构建或设备测试 |
+| mul | v1/v2 scaffold，尚未构建或设备测试 | v1/v2 scaffold，尚未构建或设备测试 |
+| div | v1/v2 scaffold，尚未构建或设备测试 | v1/v2 scaffold，尚未构建或设备测试 |
+
+`sub`、`mul`、`div` 沿用 add 的工程布局，提供 CUDA/CANN kernel、host、correctness、设备内存评估、benchmark、demo 和单算子文档。它们的 `operator.yaml` 状态保持 `scaffold`，没有复制 add 的性能记录；使用前需在对应工具链和设备上完成构建、测试及验证。各自的命令见 `operators/<op>/docs/usage.md`。
 
 查看 YAML 配置中的可选源码文件：
 
@@ -41,6 +46,8 @@ CPU-only 主机可查看源码、配置和文档，但不能运行后端工具�
     python3 tools/operator_cuda.py benchmark operators/add/operator.yaml
     ./build/add/cuda/add_kernel_v2__add_host_v2/add_demo
 
+对 `sub`、`mul`、`div` 使用相同的 `build`、`test`、`benchmark` 命令，并将配置文件替换为 `operators/sub/operator.yaml`、`operators/mul/operator.yaml` 或 `operators/div/operator.yaml`。这些实现目前未验证。
+
 ## CANN 环境
 
 需要目标机上的 CANN toolkit、bisheng、ACL runtime、CMake 3.21+ 和可用 Ascend 设备。在 CANN 环境加载后端环境脚本，例如 source <CANN>/set_env.sh：
@@ -49,6 +56,8 @@ CPU-only 主机可查看源码、配置和文档，但不能运行后端工具�
     python3 tools/operator_cann.py test operators/add/operator.yaml
     python3 tools/operator_cann.py benchmark operators/add/operator.yaml
     ./build/add/cann/add_kernel_v1__add_host_v1/add_demo
+
+对 `sub`、`mul`、`div` 使用相同的命令并替换对应 `operator.yaml`。新算子的 CANN scaffold 尚未在开发板上构建或测试；CMake 中的目标架构设置不等同于已验证支持。
 
 CANN v1 是单元素标量循环，v2 每轮展开处理四个元素；两者均使用 ACL host 调度并针对 dav-m300。v2 是指令级并行候选，不声称使用 SIMD 指令或在其他 SoC/SDK 上可用。具体设备和实测结果写在 operators/add/operator.yaml 与 operators/add/tests/cann/ 的记录中。没有 toolkit/device 时构建或设备测试会明确失败/Skip，不把它们算作通过。
 
