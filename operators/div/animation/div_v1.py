@@ -8,6 +8,7 @@ from elementwise_scene import ElementwiseV1Scene  # noqa: E402
 
 
 class DivV1Walkthrough(ElementwiseV1Scene):
+    OP_KEY = "div"
     OPERATOR = "Division · C[i] = A[i] / B[i]"
     FORMULA = "C[i] = A[i] / B[i]"
     INPUT_LABELS = ("A[0]=8, B[0]=-2", "A[1]=3, B[1]=2", "A[2]=-9, B[2]=-3", "A[3]=1, B[3]=4")

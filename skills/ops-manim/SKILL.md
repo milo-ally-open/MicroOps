@@ -32,6 +32,20 @@ Use a small, concrete tensor or matrix to show what workers do in parallel, then
 
 Use these visual tools selectively: color each worker/lane consistently; draw vector indices or matrix tiles; animate load → compute → store; expose reuse with values remaining in a buffer; and show tail lanes as inactive. Small illustrative data should preserve the real indexing rules and be labeled as a toy example when its size differs from the actual launch.
 
+## Storytelling and visual quality
+
+Treat “3Blue1Brown-level” as a request for unusually clear mathematical storytelling, not as a request to copy another creator's exact visual identity, scenes, or branding. Build an original visual language for this repository.
+
+- Give each video one learning question and a narrative arc: pose the question, build an intuition with a concrete visual, connect that intuition to the exact formula, map it to the selected kernel, then leave the viewer with one concise invariant.
+- Make each operator's mathematics visually distinct. Examples: addition combines aligned contributions; subtraction reverses a displacement; multiplication changes signed scale; division asks for a quotient; ReLU hinges at zero; GELU and SiLU reveal smooth gates; sigmoid maps a logit to a bounded value; tanh is odd and saturating. These are starting metaphors, not mandatory scenes.
+- Prefer transforming a small number of meaningful objects over presenting a succession of unrelated text cards. Let a vector entry become a point on a graph, a graph sample become a thread's value, or an index become a memory access. Keep equations short and introduce their symbols before relying on them.
+- Plot the exact function from the selected implementation, with useful axes and a few sample markers that match the displayed values. If the implementation is approximate or uses a numerically stable branch, explain that honestly; do not let visual smoothness imply different code semantics.
+- Use motion to explain a relation, decision, mapping, or data dependency. Timing should let each change register; avoid rapid decorative movement, dense paragraphs, generic chip imagery, or repeating the same storyboard with only the operator name changed.
+- Preserve visual continuity with a small, consistent palette and typography, readable contrast, deliberate composition, and enough negative space. Use CJK text only after checking that the chosen font renders correctly. Keep code excerpts selective and on screen long enough to read.
+- Do a technical and visual review at the requested delivery resolution. Inspect the whole-video contact sheet, extract full-size frames around the opening, transitions, densest labels, hardware mapping, and ending, and watch the render when playback is available. Check clipping, glyphs, contrast, plot scale, value/formula consistency, scene pacing, and claims against source. A successful render or metadata audit alone is not visual approval.
+
+For longer per-operator design notes, see [references/storyboard-quality.md](references/storyboard-quality.md).
+
 ### Activation and hardware walkthroughs
 
 - For common activation operators (ReLU, GELU, SiLU, sigmoid, tanh and similar functions), draw the function curve over a labeled input range. Mark representative inputs from the scene and connect each marker to its output value so the graph explains the same mapping as the kernel example. Match the curve to the exact implementation: for example, show the tanh approximation for GELU when that is what the kernel computes, and distinguish sigmoid's stable piecewise evaluation from the single smooth mathematical curve. Call out meaningful regions such as a threshold, zero crossing, saturation, or negative tail when they help explain the function.
@@ -60,12 +74,12 @@ Default presentation choices when the user gives none: Chinese labels, a clean 1
 
 The accelerator toolchains and hardware are not needed to render an explanatory animation. Inspecting the operator source is enough; do not compile or run the CUDA/CANN operator unless the user asks for that as part of validation.
 
-Use **Manim Community Edition** (Python distribution/CLI name `manim`), not ManimGL (`manimgl`/`manimlib`). Always install it into a dedicated environment named `manim`; never install Manim or its dependencies into Conda `base`, system Python, or the operator runtime environment. If Conda is available, create a separate `manim` Conda environment. If Conda is unavailable but Python is installed, use a separate Python `venv`. A venv still requires Python; if no Python interpreter exists, report that blocker instead of modifying the system or installing into another environment. Do not add Manim to the repository's operator runtime requirements just for animation. Check the selected environment's Python version, `python -m manim --version`, and the bundled `check` command before rendering.
+Use **Manim Community Edition** (Python distribution/CLI name `manim`), not ManimGL (`manimgl`/`manimlib`). Respect an environment explicitly selected by the user, including Conda `base`; do not silently create a second environment instead. If the user has not selected one, prefer an isolated Conda environment named `manim`, or a Python `venv` when Conda is unavailable. Do not install packages into any environment without user authorization. Do not add Manim to the repository's operator runtime requirements just for animation. Check the selected environment's Python version, `python -m manim --version`, and the bundled `check` command before rendering.
 
 Environment setup examples (run from WSL/Linux; use the equivalent activation command for another shell):
 
 ```bash
-# Preferred: isolated Conda environment. Never use `conda install` in base.
+# Default only when the user has not selected another environment.
 conda create -n manim -c conda-forge python=3.12 manim -y
 conda activate manim
 python --version
@@ -79,7 +93,7 @@ python -m pip install manim
 python -m manim --version
 ```
 
-If an existing Conda `base` environment contains useful packages, leave it unchanged. Do not use `--prefix` to put the animation environment inside the repository. For venv, keep the environment under the user's home directory so it cannot be confused with project output or operator dependencies.
+If the user explicitly selects `base`, use that environment and check whether Manim is already installed before changing it. If it is missing, install there only when the user authorized environment setup. Otherwise leave the environment unchanged and report the blocker. Do not use `--prefix` to put an animation environment inside the repository. For venv, keep the environment under the user's home directory so it cannot be confused with project output or operator dependencies.
 
 Dependency tiers:
 
@@ -89,7 +103,7 @@ Dependency tiers:
 - **Optional formula rendering:** `Tex`/`MathTex` requires a working LaTeX toolchain and `dvisvgm`, with the LaTeX packages used by the scene (commonly `standalone`, `amsmath`, and `amssymb`). Use plain `Text` for prose when formulas do not require TeX. Chinese inside TeX may also require CTeX; Chinese `Text` needs a CJK font available to Pango. Check the font actually resolves before relying on it.
 - **Not required:** CUDA Toolkit, CANN toolkit, GPU/NPU drivers or devices, PyTorch/torch_npu, TTS model downloads, or a Manim MCP server.
 
-The official installation guide recommends an isolated environment and documents pip, Conda, and Docker options. Follow its current OS-specific directions instead of copying old setup commands from videos. Do not install dependencies, download models, or change system configuration without the user's request. If something is missing, report the exact blocker and continue with source-only work when useful. When the user authorizes dependency installation, install only into the dedicated `manim` Conda environment or the dedicated `ops-manim` venv described above; do not interpret that authorization as permission to modify Conda `base` or system Python.
+Follow current OS-specific installation guidance rather than copying old setup commands from videos. Do not download models or change system configuration without the user's request. If something is missing, report the exact blocker and continue with source-only work when useful. When the user has specified the environment, that choice takes precedence over the default isolation recommendation.
 
 ## Bundled workflow helper
 
@@ -121,9 +135,11 @@ python skills/ops-manim/scripts/manim_video_review.py frames build/manim/add/add
 1. Confirm the exact source files, scene names, learning objective, and any user preferences. Inspect local Manim dependencies with the helper.
 2. Implement the simplest scene that explains the selected code path. Prefer explicit, named objects and small helper functions over a monolithic `construct()` method. Keep representative tensor values deterministic. Break a longer lesson into named `Scene` classes when that helps review or selective rerendering.
 3. Render each preview/revision as a distinct candidate under `build/manim/<op>/<scene>/candidates/<candidate-id>/`. Keep all generated videos, frames, and review notes in `build/`; do not copy candidates into the tracked source tree while they are awaiting review. Use a fresh candidate ID for each revision so a new render cannot silently replace an earlier one.
-4. Render the requested review quality for the same candidate, or create a new candidate when the scene changes. Use `manim_video_review.py info` and `contact-sheet` to inspect the render; extract exact timestamps around any questionable transition with `frames`. Check clipping, CJK glyphs, equation legibility, timing, visual continuity, hardware-model clarity, and source-to-scene fidelity. Reading the Python file alone is not visual review.
+4. Render the requested review quality for the same candidate, or create a new candidate when the scene changes. Use `manim_video_review.py info` and `contact-sheet` to inspect the render; extract exact timestamps around any questionable transition with `frames`. For multi-operator work, inspect every operator separately: a shared helper does not prove that each operator's values, curve, labels, or layout are correct. Check clipping, CJK glyphs, equation legibility, timing, visual continuity, hardware-model clarity, and source-to-scene fidelity. Reading the Python file alone is not visual review.
 5. Present the candidate paths and a concise description of what each version shows. Wait for the user to explicitly approve one before adding a video to the repository. After approval, copy only the selected MP4 to `operators/<op>/animation/videos/<scene>-<candidate-id>.mp4`; keep other candidates in ignored `build/`. Never treat a render completing as approval to publish it.
 6. If the user gives timestamped feedback, inspect the corresponding frame before editing. Render the revision under a new candidate ID, review it, and wait for approval before publishing.
+
+For a detailed per-operator review gate covering source truth, example arithmetic, hardware mapping, and frame-by-frame QA, read [references/storyboard-quality.md](references/storyboard-quality.md).
 
 After explicit approval, copy the selected quality from the candidate directory without overwriting an existing deliverable. For example:
 

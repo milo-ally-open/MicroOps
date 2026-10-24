@@ -8,6 +8,7 @@ from elementwise_scene import ElementwiseV1Scene  # noqa: E402
 
 
 class AddV1HardwareWalkthrough(ElementwiseV1Scene):
+    OP_KEY = "add"
     OPERATOR = "Add · C[i] = A[i] + B[i]"
     FORMULA = "C[i] = A[i] + B[i]"
     INPUT_LABELS = ("A[0]=1, B[0]=8", "A[1]=4, B[1]=2", "A[2]=2, B[2]=9", "A[3]=10, B[3]=20")

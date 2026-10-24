@@ -8,6 +8,7 @@ from elementwise_scene import ElementwiseV1Scene  # noqa: E402
 
 
 class SubV1Walkthrough(ElementwiseV1Scene):
+    OP_KEY = "sub"
     OPERATOR = "Subtraction · C[i] = A[i] - B[i]"
     FORMULA = "C[i] = A[i] - B[i]"
     INPUT_LABELS = ("A[0]=5, B[0]=1", "A[1]=-2, B[1]=4", "A[2]=3.5, B[2]=-1.5", "A[3]=8, B[3]=2")
