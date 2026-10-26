@@ -1,0 +1,5 @@
+device,input_size,dtype,working_set_bytes,device_memory_total_bytes,device_memory_free_before_bytes,device_memory_free_after_alloc_bytes,device_memory_free_after_release_bytes,allocation_status
+Ascend310B4,65536,float32,786432,3684454400,976801792,976801792,976801792,allocated
+Ascend310B4,65536,float32,786432,3684454400,976961536,976961536,976961536,allocated
+Ascend310B4,65536,float32,786432,3684454400,377876480,377876480,377876480,allocated
+Ascend310B4,65536,float32,786432,3684454400,599080960,599080960,599080960,allocated

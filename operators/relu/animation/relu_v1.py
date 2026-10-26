@@ -9,10 +9,11 @@ from elementwise_scene import ElementwiseV1Scene  # noqa: E402
 
 class ReluV1Walkthrough(ElementwiseV1Scene):
     OPERATOR = "ReLU"
+    FRAMEWORK_OPTIMIZATION = "relu_fusion"
     FORMULA = "Y[i] = max(X[i], 0)   (NaN is preserved)"
     INPUT_LABELS = ("X[0]=-2", "X[1]=-0.5", "X[2]=0.5", "X[3]=2")
     OUTPUTS = ("Y[0]=0", "Y[1]=0", "Y[2]=0.5", "Y[3]=2")
-    CODE = "Y[idx] = (x > 0.0f ? x : (x != x ? x : 0.0f));"
+    CODE = "Y[idx] = (x < 0.0f ? 0.0f : x);"
     GRAPH_KEY = "relu"
     GRAPH_Y_RANGE = (-0.5, 4.5)
-    GRAPH_NOTE = "x < 0 映射到 0；x > 0 保持原值。当前实现显式保留 NaN。"
+    GRAPH_NOTE = "x < 0 映射到 0；其他值原样返回。有序比较对 NaN 为假，因此 NaN 和 -0 都保留。"

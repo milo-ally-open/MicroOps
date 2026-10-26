@@ -1,17 +1,24 @@
-# 仓库架构
+# 架构概览
 
-## 按算子组织
+仓库按算子组织源码、测试工程和文档。一个算子目录包含 CUDA/CANN kernel 与 host、PyTorch/Triton GPU 实现、示例、动画及统一测试目录：
 
-每个 `operators/<name>/` 是独立交付单元，包含规格文档、`src/cuda/` 与 `src/cann/` 后端目录、独立测试工程、测试评估记录、示例和动画源码。后端源文件统一收在 `src/` 下。仓库不维护 CPU 算子实现。
+    operators/<op>/
+    ├── src/{pytorch,triton,cuda,cann}/
+    ├── tests/{pytorch,triton,cuda,cann}/{test,bench,profile}/
+    ├── docs/
+    ├── examples/
+    └── operator.yaml
 
-## 测试工程
+`operator.yaml` 是工具入口的元数据来源：实现源码、默认选择、test/bench工程、bench规模/迭代数、profile采集参数、结果路径和package清单都在此登记。完整语义只在 `docs/spec.md` 维护，不在 YAML 重复规格。
 
-`tests/cuda/` 和 `tests/cann/` 分别配置各自的工具链和运行环境，并直接使用同级设备实现作为被测对象。测试工程按 correctness、memory 和 performance 组织，评估结果保存在对应 suite 的 `results/` 中。评估结果由设备实测产生并记录环境信息；Skip、未实现和仅编译均不等于设备通过。
+## 统一执行入口
 
-## 参考资料
+`tools/run_operator.py` 面向 PyTorch、Triton、CUDA、CANN 四类 GPU/NPU 实现统一提供 `test`、`bench`、`profile`：
 
-`operators/<name>/docs/reference/` 用于论文、引用和阅读资料，`operators/<name>/docs/notes/` 用于开发学习笔记；二者都不存放算子实现。
+- test 验证正确性、dtype/shape/API约束，并在原生 CUDA/CANN 测试工程中检查设备分配。
+- bench 采集实际运行延迟、设备和版本信息、工作集及带宽估算。
+- profile 调用 torch.profiler、Nsight Compute 或 CANN msprof，报告写入忽略的 build/。
 
-## 当前能力
+CUDA 与 CANN 的 CMake 编译/打包仍由 `tools/operator_cuda.py` 与 `tools/operator_cann.py` 负责；两者各自加载配置，默认构建不强制另一套工具链。测试工程只编译选中的后端。
 
-`add` 的 CUDA kernel/host 与测试工程已有设备验证；CANN v1/v2 已在 Atlas 200I DK A2 / Ascend 310B4、CANN 7.0 RC1（dav-m300）上构建并通过设备测试。v1 是逐元素标量循环，v2 每轮展开处理四个元素；二者都是当前板卡上的 CCE 学习实现，不代表其他 SoC/SDK 可用。具体状态以 `operators/add/operator.yaml` 为准。
+`test`、`bench` 结果保存在算子 tests 对应后端的 stage 目录。profile traces/reports 是生成物，保存在 `build/<op>/profile/<backend>/`，不放入源码目录。后端只有完成实际设备验证后才登记为 device-tested；仅有源码、配置或编译器不表示已验证。

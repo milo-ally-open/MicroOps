@@ -54,6 +54,9 @@ class ElementwiseV1Scene(Scene):
         else:
             self.binary_story()
         self.cuda_story()
+        self.optimization_story()
+        if getattr(self, "FRAMEWORK_OPTIMIZATION", None) == "relu_fusion":
+            self.relu_fusion_story()
         self.ending()
 
     def background_grid(self):
@@ -393,6 +396,88 @@ class ElementwiseV1Scene(Scene):
         self.play(Write(tail_code), FadeIn(tail_note), run_time=0.65)
         self.wait(1.1)
         self.play(FadeOut(VGroup(title, launch, lanes, tail_code, tail_note)), run_time=0.55)
+
+    def optimization_story(self):
+        """Explain the v2 work granularity without claiming it always wins."""
+        title = self.header("优化候选：改变每个线程的工作颗粒度")
+        subtitle = Text("v1 与 v2 输出相同；关键是如何分配连续元素。", font=FONT_CJK,
+                        font_size=21, color=WHITE).move_to(UP * 2.18)
+        if self.GRAPH_KEY:
+            lanes = VGroup()
+            for thread in range(4):
+                rect = RoundedRectangle(width=5.2, height=0.62, corner_radius=0.1,
+                                        stroke_color=(BLUE, VIOLET, AMBER, GREEN)[thread],
+                                        fill_color=PANEL, fill_opacity=0.9)
+                label = Text(f"thread {thread}  →  idx {thread}, {4+thread}, {8+thread}, {12+thread}",
+                             font=FONT_CODE, font_size=17, color=WHITE).move_to(rect)
+                lanes.add(VGroup(rect, label))
+            lanes.arrange(DOWN, buff=0.14).move_to(UP * 0.05)
+            mapping_note = Text("blockDim=4 的 toy block：v2 展开 4 个标量；每段内相邻 lane 访问连续地址。",
+                                font=FONT_CJK, font_size=16, color=MUTED).move_to(DOWN * 1.88)
+            self.play(FadeIn(title), FadeIn(subtitle), run_time=0.55)
+            self.play(LaggedStart(*[FadeIn(lane, shift=RIGHT * 0.12) for lane in lanes],
+                                  lag_ratio=0.12), run_time=0.9)
+            self.play(FadeIn(mapping_note), run_time=0.45)
+            cards = VGroup(
+                Text("每个元素仍读 X、写 Y：约 8 B/element。", font=FONT_CJK, font_size=16, color=BLUE),
+                Text("展开可能降低索引/循环开销，但不会减少数据流量。", font=FONT_CJK, font_size=16, color=AMBER),
+                Text("本轮测量没有证明 v2 对所有激活函数都更快。", font=FONT_CJK, font_size=16, color=GREEN),
+            ).arrange(DOWN, buff=0.13).move_to(DOWN * 2.83)
+            self.play(LaggedStart(*[FadeIn(card, shift=UP * 0.08) for card in cards],
+                                  lag_ratio=0.16), run_time=0.8)
+            self.wait(0.9)
+            self.play(FadeOut(VGroup(title, subtitle, lanes, mapping_note, cards)), run_time=0.45)
+            return
+
+        title_line = Text("对齐时，一条 float4 指令路径覆盖四个连续元素", font=FONT_CJK,
+                          font_size=20, color=WHITE).move_to(UP * 2.05)
+        vectors = VGroup()
+        for name, values, color in (("A", ("a₀", "a₁", "a₂", "a₃"), BLUE),
+                                    ("B", ("b₀", "b₁", "b₂", "b₃"), VIOLET),
+                                    ("C", ("c₀", "c₁", "c₂", "c₃"), GREEN)):
+            cells = VGroup(Text(name, font=FONT_CODE, font_size=20, color=color))
+            for value in values:
+                box = RoundedRectangle(width=1.15, height=0.58, corner_radius=0.08,
+                                       stroke_color=color, fill_color=PANEL, fill_opacity=0.9)
+                cells.add(VGroup(box, Text(value, font=FONT_CODE, font_size=17, color=WHITE).move_to(box)))
+            VGroup(*cells[1:]).arrange(RIGHT, buff=0.1)
+            cells.arrange(RIGHT, buff=0.18)
+            vectors.add(cells)
+        vectors.arrange(DOWN, buff=0.25).move_to(UP * 0.38)
+        owner = self.pill("one logical thread · four aligned values", AMBER).move_to(DOWN * 1.18)
+        tail = Text("未对齐指针回退标量路径；N%4 的尾部由标量代码处理。",
+                    font=FONT_CJK, font_size=16, color=MUTED).move_to(DOWN * 1.82)
+        traffic = Text("每个元素仍读 A、读 B、写 C：约 12 B/element。",
+                       font=FONT_CJK, font_size=16, color=BLUE).move_to(DOWN * 2.30)
+        caveat = Text("向量化减少部分逐元素指令开销的机会，但本轮测量未显示所有算子稳定获益。",
+                      font=FONT_CJK, font_size=15, color=AMBER).to_edge(DOWN, buff=0.2)
+        self.play(FadeIn(title), FadeIn(title_line), run_time=0.55)
+        for row in vectors:
+            self.play(FadeIn(row, shift=RIGHT * 0.15), run_time=0.35)
+        self.play(FadeIn(owner), FadeIn(tail), FadeIn(traffic), FadeIn(caveat), run_time=0.65)
+        self.wait(0.9)
+        self.play(FadeOut(VGroup(title, title_line, vectors, owner, tail, traffic, caveat)), run_time=0.45)
+
+    def relu_fusion_story(self):
+        """Visualize the measured PyTorch graph simplification for ReLU."""
+        title = self.header("ReLU 的框架级优化：把多个张量步骤收敛到一个算子")
+        old = self.hardware_card("旧表达式", ["比较 x > 0", "检查 NaN", "创建零张量", "嵌套 where 选择"], RED, width=4.0)
+        new = self.hardware_card("torch.relu(x)", ["一个高层算子", "一次输出映射", "减少临时张量"], GREEN, width=4.0)
+        arrow = Arrow(old.get_right(), new.get_left(), color=AMBER, buff=0.14, stroke_width=4)
+        groups = VGroup(old, new).arrange(RIGHT, buff=1.0).move_to(UP * 0.55)
+        arrow.put_start_and_end_on(old.get_right(), new.get_left())
+        metric = Text("N = 16,777,216 · 记录延迟：约 4.17 ms → 0.92 ms",
+                      font=FONT_CODE, font_size=22, color=AMBER).move_to(DOWN * 1.2)
+        note = Text("来自本仓库 ReLU PyTorch v1/v2 CSV 与 profiler；两次运行有背景负载差异，作为量级证据。",
+                    font=FONT_CJK, font_size=15, color=MUTED).move_to(DOWN * 1.9)
+        invariant = Text("消除不必要的中间张量与调度步骤，通常比给同一公式增加线程更有效。",
+                         font=FONT_CJK, font_size=17, color=WHITE).move_to(DOWN * 2.55)
+        self.play(FadeIn(title), FadeIn(old, shift=LEFT * 0.12), FadeIn(new, shift=RIGHT * 0.12),
+                  GrowArrow(arrow), run_time=0.8)
+        self.play(Write(metric), FadeIn(note), run_time=0.7)
+        self.play(FadeIn(invariant), run_time=0.45)
+        self.wait(1.0)
+        self.play(FadeOut(VGroup(title, groups, arrow, metric, note, invariant)), run_time=0.5)
 
     def ending(self):
         formula = Text(self.FORMULA, font=FONT_CODE, font_size=30, color=AMBER)

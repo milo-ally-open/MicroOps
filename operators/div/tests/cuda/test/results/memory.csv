@@ -1,0 +1,4 @@
+timestamp_utc,backend,device,input_elements,dtype,compiler,compiler_version,runtime_version,driver_version,requested_bytes,device_memory_total_bytes,device_memory_free_before_bytes,device_memory_free_after_alloc_bytes,device_memory_free_after_release_bytes,allocation_status
+2026-10-25T16:41:38Z,cuda,"NVIDIA GeForce RTX 4060 Laptop GPU",65536,float32,nvcc,12.6.85,12060,12070,786432,8585216000,7443841024,7441743872,7443841024,allocated
+2026-10-25T16:42:42Z,cuda,"NVIDIA GeForce RTX 4060 Laptop GPU",65536,float32,nvcc,12.6.85,12060,12070,786432,8585216000,7443841024,7441743872,7443841024,allocated
+2026-10-25T18:39:49Z,cuda,"NVIDIA GeForce RTX 4060 Laptop GPU",65536,float32,nvcc,12.6.85,12060,12070,786432,8585216000,7443841024,7441743872,7443841024,allocated

@@ -9,7 +9,7 @@ __global__ void gelu_kernel_v2(const float* __restrict__ X,
     for (int base = first; base < N; base += stride) {
         #pragma unroll
         for (int item = 0; item < 4; ++item) {
-            const int idx = base + item * blockDim.x * gridDim.x;
+            const int idx = base + item * blockDim.x;
             if (idx < N) {
                 const float x = X[idx];
                 Y[idx] = (0.5f * x * (1.0f + tanhf(0.7978845608028654f * (x + 0.044715f * x * x * x))));

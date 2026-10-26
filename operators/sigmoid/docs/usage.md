@@ -1,47 +1,47 @@
-# sigmoid 使用说明
+# sigmoid 用法
 
-## 源码选择与状态
+所有运行统一使用仓库根目录的 `tools/run_operator.py`。该算子的后端状态、默认实现文件、bench 参数与 profile 参数以 `operator.yaml` 为准。
 
-`operator.yaml` 是构建、测试、benchmark 和打包配置入口。CUDA 默认选择 `*_kernel_v2.cu` / `*_host_v2.cu`，CANN 默认选择 v1；可通过 `--kernel` 与 `--host` 选择其他源码组合。文件名只是用户管理源码的命名习惯。
+## test
 
-本算子当前两个后端均为 scaffold，尚未在对应设备验证。后端工具会先检查本机是否有对应编译器：CUDA 需 nvcc；CANN 需 bisheng 并加载 toolkit 环境。
+逐一验证四种实现；依赖、编译器或设备缺失时会清楚失败或报告 Skip，不会使用 CPU 回退：
 
-## CUDA
+    python3 tools/run_operator.py test operators/sigmoid/operator.yaml --backend pytorch
+    python3 tools/run_operator.py test operators/sigmoid/operator.yaml --backend triton
+    python3 tools/run_operator.py test operators/sigmoid/operator.yaml --backend cuda
+    python3 tools/run_operator.py test operators/sigmoid/operator.yaml --backend cann
 
-在具备 CUDA Toolkit、nvcc、CMake 3.21+ 和 GPU 的主机运行：
+CUDA/CANN 可通过 `--kernel <文件>` 与 `--host <文件>` 选择兼容源码组合。测试覆盖正确性和设备内存分配检查；测试数据和实现约束见 `spec.md`。
 
-```sh
-python3 tools/operator_cuda.py list operators/sigmoid/operator.yaml
-python3 tools/operator_cuda.py build operators/sigmoid/operator.yaml --examples
-python3 tools/operator_cuda.py test operators/sigmoid/operator.yaml
-python3 tools/operator_cuda.py benchmark operators/sigmoid/operator.yaml
-./build/sigmoid/cuda/sigmoid_kernel_v2__sigmoid_host_v2/sigmoid_demo
-```
+## bench
 
-## CANN
+    python3 tools/run_operator.py bench operators/sigmoid/operator.yaml --backend pytorch
+    python3 tools/run_operator.py bench operators/sigmoid/operator.yaml --backend triton
+    python3 tools/run_operator.py bench operators/sigmoid/operator.yaml --backend cuda
+    python3 tools/run_operator.py bench operators/sigmoid/operator.yaml --backend cann
 
-在目标 Ascend 主机加载 toolkit 环境后运行：
+规模和迭代数默认从 YAML 读取，也可仅覆盖本次运行，例如：
 
-```sh
-source /usr/local/Ascend/ascend-toolkit/set_env.sh
-python3 tools/operator_cann.py list operators/sigmoid/operator.yaml
-python3 tools/operator_cann.py build operators/sigmoid/operator.yaml --examples
-python3 tools/operator_cann.py test operators/sigmoid/operator.yaml
-python3 tools/operator_cann.py benchmark operators/sigmoid/operator.yaml
-./build/sigmoid/cann/sigmoid_kernel_v1__sigmoid_host_v1/sigmoid_demo
-```
+    python3 tools/run_operator.py bench operators/sigmoid/operator.yaml --backend cuda --kernel <kernel-file> --host <host-file> --sizes 1024,1048576 --iterations 100
 
-v1 每轮处理一个元素；v2 展开四个标量元素并检查尾部。CANN kernel 使用本仓库现有低层 CCE/host 结构。目标架构设置和源码存在不表示已经编译或验证；若编译器不支持所用数学函数，应在目标 CANN 版本上据实际诊断调整。
+结果只在真实运行后追加到 `tests/<backend>/bench/results/`。记录包含设备、规模、dtype、所选实现、工具链/runtime、延迟和带宽估算。估算带宽不等于硬件计数器读取值。
 
-## 正确性、内存和性能
+## profile
 
-`test` 构建并运行正确性及设备内存评估；无设备时用例应显示 Skip，不计作通过。`benchmark` 的规模、迭代数从 YAML 读取，结果写入 `tests/<backend>/performance/results/`；仅真实运行会产生记录。工作集为 `2*N*sizeof(float)`，估算有效带宽按输入读取加输出写入计算，不是硬件计数器实测。
+    python3 tools/run_operator.py profile operators/sigmoid/operator.yaml --backend pytorch
+    python3 tools/run_operator.py profile operators/sigmoid/operator.yaml --backend triton
+    python3 tools/run_operator.py profile operators/sigmoid/operator.yaml --backend cuda
+    python3 tools/run_operator.py profile operators/sigmoid/operator.yaml --backend cann
 
-## 打包
+PyTorch/Triton 使用 `torch.profiler`；CUDA 使用 Nsight Compute CLI（`ncu`）；CANN 使用板端 `msprof`。profile 参数来自 YAML，也可用 `--size` 与 `--iterations` 覆盖。trace/report 写入被忽略的 `build/${op}/profile/<backend>/`，不作为源码提交。Profile 时间不替代 bench 结果。
 
-```sh
-python3 tools/operator_cuda.py package operators/sigmoid/operator.yaml
-python3 tools/operator_cann.py package operators/sigmoid/operator.yaml
-```
+## 构建与打包
 
-交付目录位于 `dist/`，包内容由 YAML 的 `package` 清单控制。
+CUDA/CANN 的独立 build 和 package 入口保留：
+
+    python3 tools/operator_cuda.py build operators/sigmoid/operator.yaml
+    python3 tools/operator_cann.py build operators/sigmoid/operator.yaml
+    python3 tools/operator_cuda.py package operators/sigmoid/operator.yaml
+    python3 tools/operator_cann.py package operators/sigmoid/operator.yaml
+
+PyTorch/Triton 需要 CUDA-enabled PyTorch；Triton 版本还需安装 Triton。CUDA 需要 nvcc 和 Nsight Compute 才能 profile；CANN 命令需先加载目标板匹配的 CANN 环境。后端当前验证状态以 operator.yaml 为准；CANN scaffold 后端因 dav-m300 API/SDK 不匹配而不能执行。已验证状态不表示 Nsight Compute 硬件计数器采集成功（本轮受 WSL 计数器权限限制）。

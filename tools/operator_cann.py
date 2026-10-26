@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Build, test, benchmark, and package an operator's CANN implementation."""
+"""Configure/build and package an operator's CANN implementation."""
 
 from operator_common import main
 

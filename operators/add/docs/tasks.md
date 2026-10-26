@@ -1,14 +1,11 @@
 # add 实现任务
 
-- [x] 明确 float32 一维向量加法的共同语义和边界。
-- [x] 建立 CUDA v1 标量 kernel 与 host launch wrapper。
-- [x] 建立 CUDA v2 向量化候选与 host launch wrapper。
-- [x] 建立 CUDA 可选源码构建、correctness、显存评估和 benchmark。
-- [x] 在 RTX 4060 Laptop GPU 上验证 CUDA 源码组合并记录真实测量。
-- [x] 建立 CANN v1 标量 CCE kernel/host 和 CMake/bisheng 构建入口。
-- [x] 建立 CANN v2 四元素展开 kernel/host，并使用同一测试工程进行独立选择验证。
-- [x] 建立 CANN correctness（N=0/1/259/1027、非法参数）、设备内存评估和事件 benchmark。
-- [x] 分别记录 CANN v1/v2 的真实 benchmark 数据，不预设展开版本必然更快。
-- [x] 在 Atlas 200I DK A2 / Ascend 310B4、CANN 7.0 RC1（dav-m300）板端构建、测试和记录。
-- [ ] 在其他受支持 CANN 版本/SoC 上验证或升级到相应的高层 Ascend C vector API。
-- [ ] 通过同一设备、同一规模、同一测试条件比较后续 CANN 优化实现。
+- [x] 定义算子语义、输入约束、dtype、shape、精度与边界测试。
+- [x] 建立 CUDA v1/v2 kernel、host wrapper、独立构建入口和测试工程。
+- [x] 在 RTX 4060 Laptop GPU 完成 CUDA build、test、memory 与 bench；保存真实记录。
+- [x] PyTorch 与 Triton GPU 实现完成 test、bench、torch.profiler profile。
+- [x] CANN v1/v2 已在 Atlas 200I DK A2 / CANN 7.0.RC1 完成 build、test、memory、bench；已采集可用的 msprof activity。
+- [ ] 在支持当前硬件的更新版 Ascend C SDK 上验证 vector 路径，并做严格配对调优。
+- [x] 建立配置元数据、demo/使用说明和按算子组织的测试记录。
+- [x] 整理统一 test / bench / profile 工作流与本轮性能分析。
+- [ ] 在无背景负载下重复配对 CUDA/PyTorch/Triton 测量并报告统计区间；CUDA NCU 需先解决 WSL counter 权限。

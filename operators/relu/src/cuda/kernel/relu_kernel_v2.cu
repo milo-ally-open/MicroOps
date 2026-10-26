@@ -8,10 +8,12 @@ __global__ void relu_kernel_v2(const float* __restrict__ X,
     for (int base = first; base < N; base += stride) {
         #pragma unroll
         for (int item = 0; item < 4; ++item) {
-            const int idx = base + item * blockDim.x * gridDim.x;
+            const int idx = base + item * blockDim.x;
             if (idx < N) {
                 const float x = X[idx];
-                Y[idx] = (x > 0.0f ? x : (x != x ? x : 0.0f));
+                // Ordered comparison is false for NaN, so this preserves NaN
+                // without a second is-NaN comparison.
+                Y[idx] = (x < 0.0f ? 0.0f : x);
             }
         }
     }

@@ -1,94 +1,65 @@
-# 构建、测试与评估
+# 构建、test、bench 与 profile
 
-每个算子的 `operator.yaml` 记录后端源码目录、默认 kernel/host 文件、CMake 项目、测试源码、结果路径和打包清单。CUDA 与 CANN 使用独立脚本，命令不再需要 `--backend`；源码选择可从 YAML 读取，也可通过 `--kernel`、`--host` 临时覆盖。每次运行脚本时都会先检查本机对应编译器是否可用：CUDA 检查 `nvcc`，CANN 检查 `bisheng`。缺少对应后端环境时，所有子命令（包括 `list` 和 `package`）都会报错退出，避免把另一个后端的环境误当成本后端。
+仓库根目录下用同一个入口运行四种 GPU/NPU 后端：
 
-## 工具要求
+    python3 tools/run_operator.py <test|bench|profile> operators/<op>/operator.yaml --backend <pytorch|triton|cuda|cann>
 
-- Python 3.9+ 和 PyYAML：`python3 -m pip install -r requirements.txt`
-- CMake 3.21+
-- CUDA：兼容的 CUDA Toolkit/nvcc、C++17 host 编译器，以及设备测试所需驱动/设备
-- CANN：匹配的 CANN toolkit/bisheng、ACL runtime 与 Ascend NPU；add CANN v1/v2 已在 Atlas 200I DK A2 / Ascend 310B4、CANN 7.0 RC1 上验证
+源文件默认选择来自 `operator.yaml`。CUDA/CANN 可用 `--kernel` 和 `--host` 指定特定版本；PyTorch/Triton 的源码入口同样登记在 YAML。
 
-## 查看源码
+## 工具链
 
-从 WSL/Linux 仓库根目录运行对应脚本：
+- PyTorch：CUDA-enabled PyTorch、可用 NVIDIA GPU。
+- Triton：PyTorch CUDA、Triton 与可用 NVIDIA GPU。
+- CUDA：CUDA Toolkit/nvcc、C++17 编译器、驱动与 GPU；profile 另需 Nsight Compute CLI（ncu）。
+- CANN：在目标板加载匹配的 CANN toolkit 环境，需 bisheng、ACL runtime 和 Ascend NPU；profile 另需 msprof。
 
-```bash
-python3 tools/operator_cuda.py list operators/add/operator.yaml
-python3 tools/operator_cann.py list operators/add/operator.yaml
-```
+普通 CPU 环境可查阅配置和文档，但不能运行这些 GPU/NPU 实现。缺少依赖时命令会明确退出，不回退到 CPU。
 
-默认文件和候选扩展名来自 `operator.yaml`。文件名由开发者决定，不要求固定命名格式；目录内有多个候选文件时，通过 `--kernel` 和 `--host` 选择组合。
+## CUDA
 
-## CUDA 构建与测试
+构建算子库/示例仍使用 CUDA 专用构建入口；test、bench、profile 使用统一入口：
 
-```bash
-python3 tools/operator_cuda.py build operators/add/operator.yaml --examples
-python3 tools/operator_cuda.py test operators/add/operator.yaml
-```
+    python3 tools/operator_cuda.py build operators/add/operator.yaml --examples
+    python3 tools/run_operator.py test operators/add/operator.yaml --backend cuda
+    python3 tools/run_operator.py bench operators/add/operator.yaml --backend cuda
+    python3 tools/run_operator.py profile operators/add/operator.yaml --backend cuda
 
-选择 v1 文件组合：
+选 kernel/host 版本：
 
-```bash
-python3 tools/operator_cuda.py build operators/add/operator.yaml \
-  --kernel add_kernel_v1.cu --host add_host_v1.cu --examples
-python3 tools/operator_cuda.py test operators/add/operator.yaml \
-  --kernel add_kernel_v1.cu --host add_host_v1.cu
-```
+    python3 tools/operator_cuda.py build operators/add/operator.yaml --kernel add_kernel_v1.cu --host add_host_v1.cu
+    python3 tools/run_operator.py test operators/add/operator.yaml --backend cuda --kernel add_kernel_v1.cu --host add_host_v1.cu
+    python3 tools/run_operator.py bench operators/add/operator.yaml --backend cuda --kernel add_kernel_v1.cu --host add_host_v1.cu
 
-直接使用 CMake 时，文件路径对应如下参数：
+## CANN
 
-```bash
-cmake -S operators/add -B build/add/cuda/manual \
-  -DOPS_ENABLE_CUDA=ON -DOPS_ENABLE_CANN=OFF \
-  -DOPS_KERNEL_FILE=add_kernel_v2.cu -DOPS_HOST_FILE=add_host_v2.cu \
-  -DOPS_BUILD_EXAMPLES=ON
-cmake --build build/add/cuda/manual --config Release
-```
+在开发板或 CANN 环境加载 Toolkit 后运行：
 
-测试工程由 `operator.yaml` 中 `backends.cuda.tests.project` 指定。没有 `nvcc` 时配置明确失败；没有设备或驱动时设备用例明确 Skip。
+    source /usr/local/Ascend/ascend-toolkit/set_env.sh
+    python3 tools/operator_cann.py build operators/add/operator.yaml --examples
+    python3 tools/run_operator.py test operators/add/operator.yaml --backend cann
+    python3 tools/run_operator.py bench operators/add/operator.yaml --backend cann
+    python3 tools/run_operator.py profile operators/add/operator.yaml --backend cann
 
-## CUDA 性能评估
+示例板端 CANN 环境和版本须以实际 `set_env.sh` 为准。CANN profile 通过 msprof 包装测试工程构建出的 bench executable，报告进入 `build/add/profile/cann/`。
 
-正确性通过后运行配置中的 benchmark：
+## PyTorch 与 Triton
 
-```bash
-python3 tools/operator_cuda.py benchmark operators/add/operator.yaml
-```
+    python3 tools/run_operator.py test operators/add/operator.yaml --backend pytorch
+    python3 tools/run_operator.py bench operators/add/operator.yaml --backend pytorch
+    python3 tools/run_operator.py profile operators/add/operator.yaml --backend pytorch
+    python3 tools/run_operator.py test operators/add/operator.yaml --backend triton
+    python3 tools/run_operator.py bench operators/add/operator.yaml --backend triton
+    python3 tools/run_operator.py profile operators/add/operator.yaml --backend triton
 
-输入规模和迭代次数从 `backends.cuda.benchmark.sizes` 与 `iterations` 读取；可修改 YAML 设置常用范围，也可使用 `--sizes`、`--iterations` 临时覆盖。结果追加到配置指定的目录，文件名由 kernel/host 文件组合生成，记录设备、输入规模、编译器/runtime、资源读数和测量数据。
+PyTorch 与 Triton 的九个算子已在 RTX 4060 Laptop GPU 上执行 test、bench 与 `torch.profiler` profile。profile 输出 Chrome trace、摘要和 metadata。测量受同时运行的 GPU 工作负载影响，比较结果应结合多次同条件测量。
 
-## CANN 构建、测试与性能评估
+## 配置、结果和打包
 
-在板端加载 CANN 环境后执行：
+`operator.yaml` 的 `backends.<backend>.bench` 与 `frameworks.<backend>.bench` 保存默认规模、迭代和结果目录；profile 节保存采集参数。命令行参数只覆盖单次运行，不改配置。
 
-```bash
-source /usr/local/Ascend/ascend-toolkit/set_env.sh
-python3 tools/operator_cann.py build operators/add/operator.yaml --examples
-python3 tools/operator_cann.py test operators/add/operator.yaml
-python3 tools/operator_cann.py benchmark operators/add/operator.yaml
-```
+- test 结果与设备分配记录：`operators/<op>/tests/<backend>/test/results/`
+- bench CSV：`operators/<op>/tests/<backend>/bench/results/`
+- profile trace/report：`build/<op>/profile/<backend>/`（忽略生成目录）
+- CUDA/CANN 源码包：分别用 `tools/operator_cuda.py package` 和 `tools/operator_cann.py package` 输出到 `dist/`
 
-选择 CANN v2 文件组合：
-
-```bash
-python3 tools/operator_cann.py build operators/add/operator.yaml \
-  --kernel add_kernel_v2.cpp --host add_host_v2.cpp --examples
-python3 tools/operator_cann.py test operators/add/operator.yaml \
-  --kernel add_kernel_v2.cpp --host add_host_v2.cpp
-python3 tools/operator_cann.py benchmark operators/add/operator.yaml \
-  --kernel add_kernel_v2.cpp --host add_host_v2.cpp
-```
-
-CANN 当前针对已验证的 dav-m300，使用 bisheng + ACL Runtime，不依赖 PyTorch。其他 toolkit/SoC 未验证时不能据此标记可用。
-
-## 打包
-
-每个后端分别打包：
-
-```bash
-python3 tools/operator_cuda.py package operators/add/operator.yaml
-python3 tools/operator_cann.py package operators/add/operator.yaml
-```
-
-输出位于 `dist/`。源码包不等于已编译二进制包；工具不会覆盖历史测试结果文件。
+正确性检查、bench 测量和 profile 采集是三个独立结论；不要用 profiler 期间的时间填 bench 结果。实测数据按运行时设备、编译器/runtime、输入规模和源码选择记录，未执行的数据留空。

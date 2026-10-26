@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Shared implementation for the CUDA and CANN operator tools."""
+"""Shared build, package, test, and bench helpers for native backends."""
 
 import argparse
 import csv
@@ -82,24 +82,6 @@ def make_parser(backend_name, backend_profile):
     build.add_argument("--build-dir", type=Path, help="override the configured build directory")
     build.add_argument("--examples", action="store_true", help="also build configured examples")
     build.set_defaults(handler=build_backend)
-
-    test = commands.add_parser("test", help=f"build and run the {backend_name.upper()} test project")
-    add_selection_arguments(test)
-    test.set_defaults(backend=backend_name, backend_profile=backend_profile)
-    test.add_argument("--build-dir", type=Path, help="override the configured test build directory")
-    test.set_defaults(handler=test_backend)
-
-    benchmark = commands.add_parser("benchmark", help=f"run the {backend_name.upper()} performance evaluation")
-    add_selection_arguments(benchmark)
-    benchmark.set_defaults(backend=backend_name, backend_profile=backend_profile)
-    benchmark.add_argument("--sizes", type=positive_ints,
-                           help="override benchmark.sizes from operator.yaml")
-    benchmark.add_argument("--iterations", type=positive_int,
-                           help="override benchmark.iterations from operator.yaml")
-    benchmark.add_argument("--output", type=Path, help="override the configured CSV output")
-    benchmark.add_argument("--build-dir", type=Path, help="override the configured benchmark build directory")
-    benchmark.add_argument("--executable", type=Path, help="use an already-built evaluation executable")
-    benchmark.set_defaults(handler=run_benchmark)
 
     package = commands.add_parser("package", help=f"package {backend_name.upper()} files under dist/")
     add_selection_arguments(package)
@@ -286,13 +268,13 @@ def repository_path(value):
     return path if path.is_absolute() else ROOT / path
 
 
-def default_build_dir(context, *, test=False, benchmark=False):
+def default_build_dir(context, *, test=False, bench=False):
     paths = context["config"].get("paths", {})
     build_root = repository_path(paths.get("build_root", "build"))
     name = context["config"]["name"]
     backend = context["backend_name"]
-    if benchmark:
-        return build_root / name / "benchmark" / backend / context["selection"]
+    if bench:
+        return build_root / name / "bench" / backend / context["selection"]
     if test:
         return build_root / name / "tests" / backend / context["selection"]
     return build_root / name / backend / context["selection"]
@@ -383,52 +365,52 @@ def positive_ints(value):
         raise argparse.ArgumentTypeError("provide comma-separated positive integers") from error
 
 
-def run_benchmark(args):
+def run_bench(args):
     context = resolve_selection(args)
     if context is None:
         return 2
-    benchmark = context["backend"].get("benchmark")
-    if not benchmark:
-        print(f"ERROR: benchmark is not configured for backend {context['backend_name']}.", file=sys.stderr)
+    bench = context["backend"].get("bench")
+    if not bench:
+        print(f"ERROR: bench is not configured for backend {context['backend_name']}.", file=sys.stderr)
         return 2
-    protocol = benchmark.get("protocol")
+    protocol = bench.get("protocol")
     profile = args.backend_profile
     if protocol != profile["benchmark_protocol"]:
-        print(f"ERROR: {context['backend_name']} expects benchmark protocol "
+        print(f"ERROR: {context['backend_name']} expects bench protocol "
               f"{profile['benchmark_protocol']!r}, found {protocol!r} in operator.yaml.", file=sys.stderr)
         return 2
     tests = context["backend"].get("tests", {})
     if not tests.get("project"):
-        print("ERROR: benchmark requires a configured test project.", file=sys.stderr)
+        print("ERROR: bench requires a configured test project.", file=sys.stderr)
         return 2
-    iterations = args.iterations if args.iterations is not None else benchmark.get("iterations", 100)
-    sizes = args.sizes if args.sizes is not None else benchmark.get("sizes", [1024, 1048576])
+    iterations = args.iterations if args.iterations is not None else bench.get("iterations", 100)
+    sizes = args.sizes if args.sizes is not None else bench.get("sizes", [1024, 1048576])
     if not isinstance(iterations, int) or isinstance(iterations, bool) or iterations <= 0:
-        print("ERROR: benchmark.iterations in operator.yaml must be a positive integer.", file=sys.stderr)
+        print("ERROR: bench.iterations in operator.yaml must be a positive integer.", file=sys.stderr)
         return 2
     if (not isinstance(sizes, list) or not sizes or
             any(not isinstance(size, int) or isinstance(size, bool) or size <= 0 for size in sizes)):
-        print("ERROR: benchmark.sizes in operator.yaml must be a non-empty list of positive integers.",
+        print("ERROR: bench.sizes in operator.yaml must be a non-empty list of positive integers.",
               file=sys.stderr)
         return 2
-    if any(size > benchmark.get("max_input", 2147483647) for size in sizes):
-        print(f"ERROR: input size exceeds configured maximum {benchmark.get('max_input', 2147483647)}.",
+    if any(size > bench.get("max_input", 2147483647) for size in sizes):
+        print(f"ERROR: input size exceeds configured maximum {bench.get('max_input', 2147483647)}.",
               file=sys.stderr)
         return 2
 
-    build_dir = repository_path(args.build_dir) if args.build_dir else default_build_dir(context, benchmark=True)
+    build_dir = repository_path(args.build_dir) if args.build_dir else default_build_dir(context, bench=True)
     test_project = get_cmake_dir(context["project_root"], tests["project"])
     options = dict(tests.get("options", {}))
-    options.update(benchmark.get("options", {}))
+    options.update(bench.get("options", {}))
     command = ["cmake", "-S", str(test_project), "-B", str(build_dir),
                *source_definitions(context, {"options": options}, include_tests=True)]
     configured = run(command, missing_tool_message=
-                     "ERROR: CMake and the selected backend toolchain are required to build this benchmark.")
+                     "ERROR: CMake and the selected backend toolchain are required to build this bench.")
     if configured is None:
         return 127
     if configured.returncode != 0:
         return configured.returncode
-    target = benchmark.get("target")
+    target = bench.get("target")
     built = run(["cmake", "--build", str(build_dir), "--config", "Release", "--target", target, "--parallel"])
     if built is None:
         return 127
@@ -439,7 +421,7 @@ def run_benchmark(args):
     if executable:
         executable = repository_path(executable)
     else:
-        executable = build_dir / benchmark["executable"]
+        executable = build_dir / bench["executable"]
         if platform.system() == "Windows":
             executable = executable.with_suffix(".exe")
         if not executable.exists():
@@ -449,7 +431,7 @@ def run_benchmark(args):
         return 2
 
     compiler_version = "unavailable"
-    compiler = shutil.which(benchmark.get("compiler", profile["compiler"]))
+    compiler = shutil.which(bench.get("compiler", profile["compiler"]))
     if compiler:
         result = run([compiler, "--version"], capture=True)
         if result is not None and result.returncode == 0:
@@ -497,8 +479,8 @@ def run_benchmark(args):
             "timestamp_utc": timestamp, "operator": context["config"]["name"],
             "backend": context["backend_name"], "kernel_file": context["kernel_file"],
             "host_file": context["host_file"], "device": device, "input_size": measured_size,
-            "dtype": benchmark.get("dtype", "float32"),
-            "compiler": benchmark.get("compiler", profile["compiler"]),
+            "dtype": bench.get("dtype", "float32"),
+            "compiler": bench.get("compiler", profile["compiler"]),
             "compiler_version": compiler_version,
             "runtime": profile["runtime_format"].format(
                 runtime_version=runtime_version, driver_version=driver_version),
@@ -519,7 +501,7 @@ def run_benchmark(args):
             print(measured.stderr or f"Evaluation exited {measured.returncode}", file=sys.stderr)
             return measured.returncode
 
-    result_dir = resolve_path(context["project_root"], tests["results"]["performance"])
+    result_dir = resolve_path(context["project_root"], tests["results"]["bench"])
     output = args.output or result_dir / f"{context['selection']}.csv"
     output = repository_path(output)
     output.parent.mkdir(parents=True, exist_ok=True)
@@ -550,9 +532,9 @@ def package_backend(args):
             directory = context["backend"][role]["dir"]
             files.extend((Path(directory) / source.name).as_posix()
                          for source in configured_sources(context, role))
-    performance_results = context["backend"].get("tests", {}).get("results", {}).get("performance")
-    if performance_results:
-        result_file = f"{performance_results}/{context['selection']}.csv"
+    bench_results = context["backend"].get("tests", {}).get("results", {}).get("bench")
+    if bench_results:
+        result_file = f"{bench_results}/{context['selection']}.csv"
         if resolve_path(context["project_root"], result_file).is_file():
             files.append(result_file)
     files = list(dict.fromkeys(files))

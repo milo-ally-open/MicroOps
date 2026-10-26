@@ -1,0 +1,4 @@
+timestamp_utc,operator,backend,implementation,device,input_size,dtype,torch_version,triton_version,cuda_runtime,warmup,iterations,peak_allocated_bytes,estimated_bytes_per_iteration,average_latency_us,effective_bandwidth_GBps
+2026-10-25T16:57:31.966842+00:00,sub,triton,src/triton/sub_triton_v1.py,NVIDIA GeForce RTX 4060 Laptop GPU,1024,float32,2.14.1+cu126,3.8.0,12.6,20,100,12288,12288,22.63040065765381,0.5429864095598363
+2026-10-25T16:57:31.987603+00:00,sub,triton,src/triton/sub_triton_v1.py,NVIDIA GeForce RTX 4060 Laptop GPU,1048576,float32,2.14.1+cu126,3.8.0,12.6,20,100,12582912,12582912,19.834879636764526,634.3830782152671
+2026-10-25T16:57:32.152497+00:00,sub,triton,src/triton/sub_triton_v1.py,NVIDIA GeForce RTX 4060 Laptop GPU,16777216,float32,2.14.1+cu126,3.8.0,12.6,20,100,201326592,201326592,1395.3535461425781,144.2835706811099

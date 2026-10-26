@@ -25,9 +25,9 @@
 
 ## 后端状态
 
-- CUDA：kernel、host、build、correctness、显存评估、benchmark 和 demo 已建立为 scaffold；本仓库尚未确认此算子通过 nvcc 构建或任何 CUDA 设备测试。
-- CANN：CCE kernel、ACL host、build、correctness、设备内存评估、benchmark 和 demo 已建立为 scaffold；本仓库尚未确认此算子通过 bisheng 构建或任何 Ascend 设备测试。
-- `operator.yaml` 不记录任何新算子的实测性能行；只有在目标环境实际运行后才可更新状态和结果。
+- CUDA：v1/v2 已在 nvcc 12.6.85、CUDA Runtime 12.6 和 RTX 4060 Laptop GPU 上构建，并通过设备正确性、内存与 benchmark 检查。Nsight Compute 硬件计数器采集受 WSL 权限限制，不能据此声称 CUDA counter profile 完成。
+- CANN：v1/v2 已在 Atlas 200I DK A2（310B4）、CANN 7.0.RC1 / dav-m300 上构建并通过设备正确性、内存与 benchmark 检查；可用板端 profile 由 msprof 采集。
+- PyTorch 与 Triton：GPU-only 实现已在 RTX 4060 Laptop GPU 上通过 correctness、benchmark 和 torch.profiler profile。
 
 ## 验收标准
 
@@ -36,3 +36,7 @@
 - benchmark 记录设备、源码选择、输入规模、dtype、编译器/runtime、测量延迟、估算有效带宽和结果校验；没有实测时不填性能数据。
 - CUDA float32 `multiplication`按每元素 2 次读和 1 次写估算 `12*N` 字节；这是有效带宽估算，不是硬件计数器测得的 DRAM 带宽。
 - 仅在实际工具链和硬件验证后，才可把后端 `status` 从 `scaffold` 更新为已验证状态。
+
+## PyTorch / Triton 实现状态
+
+PyTorch 与 Triton 源码入口登记在 operator.yaml 的 frameworks.pytorch 和 frameworks.triton 下，均提供 CUDA GPU 上连续一维 float32 实现。两个后端已在 RTX 4060 Laptop GPU 上完成 test、bench 和 torch.profiler profile；性能记录位于各自 tests/pytorch/bench/results/ 与 tests/triton/bench/results/。

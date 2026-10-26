@@ -11,17 +11,24 @@ enable_language(CUDA)
 find_package(CUDAToolkit REQUIRED)
 include(CTest)
 
+function(ops_fix_pie_link target)
+    if(UNIX AND NOT APPLE AND CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+        target_link_options(${target} PRIVATE -no-pie)
+    endif()
+endfunction()
+
 get_filename_component(MUL_OPERATOR_ROOT "${CMAKE_CURRENT_LIST_DIR}/../.." ABSOLUTE)
 add_subdirectory("${MUL_OPERATOR_ROOT}/src/cuda" "${CMAKE_CURRENT_BINARY_DIR}/operator_cuda")
 
-set(OPS_TEST_CORRECTNESS_SOURCE "${CMAKE_CURRENT_LIST_DIR}/correctness/mul_cuda_test.cu"
+set(OPS_TEST_CORRECTNESS_SOURCE "${CMAKE_CURRENT_LIST_DIR}/test/mul_cuda_test.cu"
     CACHE FILEPATH "CUDA correctness test source")
-set(OPS_TEST_MEMORY_SOURCE "${CMAKE_CURRENT_LIST_DIR}/memory/mul_cuda_memory_eval.cu"
+set(OPS_TEST_MEMORY_SOURCE "${CMAKE_CURRENT_LIST_DIR}/test/mul_cuda_memory_eval.cu"
     CACHE FILEPATH "CUDA memory evaluation source")
-set(OPS_TEST_PERFORMANCE_SOURCE "${CMAKE_CURRENT_LIST_DIR}/performance/mul_cuda_benchmark.cu"
-    CACHE FILEPATH "CUDA performance evaluation source")
+set(OPS_TEST_BENCH_SOURCE "${CMAKE_CURRENT_LIST_DIR}/bench/mul_cuda_bench.cu"
+    CACHE FILEPATH "CUDA bench evaluation source")
 
 add_executable(mul_cuda_correctness_test "${OPS_TEST_CORRECTNESS_SOURCE}")
+ops_fix_pie_link(mul_cuda_correctness_test)
 target_link_libraries(mul_cuda_correctness_test PRIVATE mul_cuda CUDA::cudart)
 target_compile_definitions(mul_cuda_correctness_test PRIVATE
     MUL_CUDA_KERNEL_FILE="${OPS_KERNEL_FILE}"
@@ -31,9 +38,10 @@ set_target_properties(mul_cuda_correctness_test PROPERTIES
 add_test(NAME mul_cuda_correctness COMMAND mul_cuda_correctness_test)
 set_tests_properties(mul_cuda_correctness PROPERTIES SKIP_RETURN_CODE 77)
 
-set(MUL_CUDA_MEMORY_RESULTS "${MUL_OPERATOR_ROOT}/tests/cuda/memory/results/memory.csv"
+set(MUL_CUDA_MEMORY_RESULTS "${MUL_OPERATOR_ROOT}/tests/cuda/test/results/memory.csv"
     CACHE FILEPATH "CSV path for real CUDA memory-evaluation records")
 add_executable(mul_cuda_memory_eval "${OPS_TEST_MEMORY_SOURCE}")
+ops_fix_pie_link(mul_cuda_memory_eval)
 target_link_libraries(mul_cuda_memory_eval PRIVATE CUDA::cudart)
 target_compile_definitions(mul_cuda_memory_eval PRIVATE
     MUL_CUDA_COMPILER_VERSION=\"${CMAKE_CUDA_COMPILER_VERSION}\")
@@ -43,14 +51,15 @@ add_test(NAME mul_cuda_memory_eval
     COMMAND mul_cuda_memory_eval "${MUL_CUDA_MEMORY_RESULTS}" 65536)
 set_tests_properties(mul_cuda_memory_eval PROPERTIES SKIP_RETURN_CODE 77)
 
-option(OPS_BUILD_PERFORMANCE "Build the CUDA performance evaluation executable" OFF)
-if(OPS_BUILD_PERFORMANCE)
-    add_executable(mul_cuda_benchmark "${OPS_TEST_PERFORMANCE_SOURCE}")
-    target_include_directories(mul_cuda_benchmark PRIVATE "${MUL_OPERATOR_ROOT}/src/cuda/include")
-    target_link_libraries(mul_cuda_benchmark PRIVATE mul_cuda CUDA::cudart)
-    target_compile_definitions(mul_cuda_benchmark PRIVATE
+option(OPS_BUILD_BENCH "Build the CUDA bench evaluation executable" OFF)
+if(OPS_BUILD_BENCH)
+    add_executable(mul_cuda_bench "${OPS_TEST_BENCH_SOURCE}")
+    ops_fix_pie_link(mul_cuda_bench)
+    target_include_directories(mul_cuda_bench PRIVATE "${MUL_OPERATOR_ROOT}/src/cuda/include")
+    target_link_libraries(mul_cuda_bench PRIVATE mul_cuda CUDA::cudart)
+    target_compile_definitions(mul_cuda_bench PRIVATE
         MUL_CUDA_KERNEL_FILE="${OPS_KERNEL_FILE}"
         MUL_CUDA_HOST_FILE="${OPS_HOST_FILE}")
-    set_target_properties(mul_cuda_benchmark PROPERTIES
+    set_target_properties(mul_cuda_bench PROPERTIES
         CUDA_STANDARD 17 CUDA_STANDARD_REQUIRED ON CUDA_EXTENSIONS OFF)
 endif()

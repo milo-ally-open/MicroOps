@@ -12,7 +12,7 @@ docs:
   usage: docs/usage.md
 backends:
   cuda:
-    status: scaffold
+    status: device_tested
     kernel:
       dir: src/cuda/kernel
       extensions:
@@ -35,22 +35,22 @@ backends:
       examples_option: OPS_BUILD_EXAMPLES
     tests:
       project: tests/cuda
-      correctness: tests/cuda/correctness/sub_cuda_test.cu
-      memory: tests/cuda/memory/sub_cuda_memory_eval.cu
-      performance: tests/cuda/performance/sub_cuda_benchmark.cu
+      test: tests/cuda/test/sub_cuda_test.cu
+      memory: tests/cuda/test/sub_cuda_memory_eval.cu
+      bench: tests/cuda/bench/sub_cuda_bench.cu
       cmake_variables:
-        correctness: OPS_TEST_CORRECTNESS_SOURCE
+        test: OPS_TEST_CORRECTNESS_SOURCE
         memory: OPS_TEST_MEMORY_SOURCE
-        performance: OPS_TEST_PERFORMANCE_SOURCE
+        bench: OPS_TEST_BENCH_SOURCE
         memory_results: SUB_CUDA_MEMORY_RESULTS
       options: {}
       results:
-        memory: tests/cuda/memory/results/memory.csv
-        performance: tests/cuda/performance/results
-    benchmark:
+        memory: tests/cuda/test/results/memory.csv
+        bench: tests/cuda/bench/results
+    bench:
       protocol: cuda_tsv_v1
-      target: sub_cuda_benchmark
-      executable: sub_cuda_benchmark
+      target: sub_cuda_bench
+      executable: sub_cuda_bench
       compiler: nvcc
       dtype: float32
       sizes:
@@ -60,7 +60,14 @@ backends:
       iterations: 100
       max_input: 2147483647
       options:
-        OPS_BUILD_PERFORMANCE: true
+        OPS_BUILD_BENCH: true
+    profile:
+      tool: ncu
+      size: 65536
+      iterations: 1
+      launch_skip: 10
+      launch_count: 1
+      output: build/sub/profile/cuda
     demo: examples/cuda/sub_demo.cu
     package:
       include_all_sources: true
@@ -75,12 +82,12 @@ backends:
       - src/cuda/host/kernel_selection.h.in
       - src/cuda/include/ops/sub_cuda.hpp
       - tests/cuda/CMakeLists.txt
-      - tests/cuda/correctness/sub_cuda_test.cu
-      - tests/cuda/memory/sub_cuda_memory_eval.cu
-      - tests/cuda/performance/sub_cuda_benchmark.cu
+      - tests/cuda/test/sub_cuda_test.cu
+      - tests/cuda/test/sub_cuda_memory_eval.cu
+      - tests/cuda/bench/sub_cuda_bench.cu
       - examples/cuda/sub_demo.cu
   cann:
-    status: scaffold
+    status: device_tested
     kernel:
       dir: src/cann/kernel
       extensions:
@@ -105,22 +112,22 @@ backends:
       examples_option: OPS_BUILD_EXAMPLES
     tests:
       project: tests/cann
-      correctness: tests/cann/correctness/sub_cann_test.cpp
-      memory: tests/cann/memory/sub_cann_memory_eval.cpp
-      performance: tests/cann/performance/sub_cann_benchmark.cpp
+      test: tests/cann/test/sub_cann_test.cpp
+      memory: tests/cann/test/sub_cann_memory_eval.cpp
+      bench: tests/cann/bench/sub_cann_bench.cpp
       cmake_variables:
-        correctness: OPS_TEST_CORRECTNESS_SOURCE
+        test: OPS_TEST_CORRECTNESS_SOURCE
         memory: OPS_TEST_MEMORY_SOURCE
-        performance: OPS_TEST_PERFORMANCE_SOURCE
+        bench: OPS_TEST_BENCH_SOURCE
         memory_results: SUB_CANN_MEMORY_RESULTS
       options: {}
       results:
-        memory: tests/cann/memory/results/memory.csv
-        performance: tests/cann/performance/results
-    benchmark:
+        memory: tests/cann/test/results/memory.csv
+        bench: tests/cann/bench/results
+    bench:
       protocol: cann_tsv_v1
-      target: sub_cann_benchmark
-      executable: sub_cann_benchmark
+      target: sub_cann_bench
+      executable: sub_cann_bench
       compiler: bisheng
       dtype: float32
       sizes:
@@ -130,7 +137,12 @@ backends:
       iterations: 30
       max_input: 2147483647
       options:
-        OPS_BUILD_PERFORMANCE: true
+        OPS_BUILD_BENCH: true
+    profile:
+      tool: msprof
+      size: 65536
+      iterations: 1
+      output: build/sub/profile/cann
     demo: examples/cann/sub_demo.cpp
     package:
       include_all_sources: true
@@ -144,7 +156,42 @@ backends:
       - src/cann/host/kernel_selection.h.in
       - src/cann/include/ops/sub_cann.hpp
       - tests/cann/CMakeLists.txt
-      - tests/cann/correctness/sub_cann_test.cpp
-      - tests/cann/memory/sub_cann_memory_eval.cpp
-      - tests/cann/performance/sub_cann_benchmark.cpp
+      - tests/cann/test/sub_cann_test.cpp
+      - tests/cann/test/sub_cann_memory_eval.cpp
+      - tests/cann/bench/sub_cann_bench.cpp
       - examples/cann/sub_demo.cpp
+frameworks:
+  pytorch:
+    status: device_tested
+    implementation: src/pytorch/sub_pytorch_v1.py
+    entry: run
+    rtol: 1.0e-6
+    atol: 1.0e-6
+    bench:
+      sizes: [1024, 1048576, 16777216]
+      warmup: 20
+      iterations: 100
+      bytes_per_element: 12
+      results: tests/pytorch/bench/results
+    profile:
+      size: 1048576
+      warmup: 5
+      steps: 10
+      output: build/sub/profile/pytorch
+  triton:
+    status: device_tested
+    implementation: src/triton/sub_triton_v1.py
+    entry: run
+    rtol: 1.0e-6
+    atol: 1.0e-6
+    bench:
+      sizes: [1024, 1048576, 16777216]
+      warmup: 20
+      iterations: 100
+      bytes_per_element: 12
+      results: tests/triton/bench/results
+    profile:
+      size: 1048576
+      warmup: 5
+      steps: 10
+      output: build/sub/profile/triton

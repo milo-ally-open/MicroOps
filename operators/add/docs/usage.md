@@ -1,54 +1,47 @@
-# add 使用说明
+# add 用法
 
-## 配置与源码选择
+所有运行统一使用仓库根目录的 `tools/run_operator.py`。该算子的后端状态、默认实现文件、bench 参数与 profile 参数以 `operator.yaml` 为准。
 
-operator.yaml 是构建、测试、benchmark 和打包配置入口，包含 CUDA/CANN 源码目录、默认 kernel/host 文件、测试工程、benchmark 尺寸和结果路径。文件名只表示源码选择值，可继续增加 add_kernel_v3.cpp 等版本：
+## test
 
-CUDA 与 CANN 脚本会先检查各自编译器（`nvcc` 或 `bisheng`）是否在 PATH 中；缺少对应环境时，包括 list 和 package 在内的命令都会明确退出。
+逐一验证四种实现；依赖、编译器或设备缺失时会清楚失败或报告 Skip，不会使用 CPU 回退：
 
-    python3 tools/operator_cuda.py list operators/add/operator.yaml
-    python3 tools/operator_cann.py list operators/add/operator.yaml
+    python3 tools/run_operator.py test operators/add/operator.yaml --backend pytorch
+    python3 tools/run_operator.py test operators/add/operator.yaml --backend triton
+    python3 tools/run_operator.py test operators/add/operator.yaml --backend cuda
+    python3 tools/run_operator.py test operators/add/operator.yaml --backend cann
 
-## CUDA
+CUDA/CANN 可通过 `--kernel <文件>` 与 `--host <文件>` 选择兼容源码组合。测试覆盖正确性和设备内存分配检查；测试数据和实现约束见 `spec.md`。
 
-在安装 CUDA Toolkit、nvcc、CMake 3.21+ 的主机执行：
+## bench
 
-    python3 tools/operator_cuda.py build operators/add/operator.yaml --examples
-    python3 tools/operator_cuda.py test operators/add/operator.yaml
-    python3 tools/operator_cuda.py benchmark operators/add/operator.yaml
-    ./build/add/cuda/add_kernel_v2__add_host_v2/add_demo
+    python3 tools/run_operator.py bench operators/add/operator.yaml --backend pytorch
+    python3 tools/run_operator.py bench operators/add/operator.yaml --backend triton
+    python3 tools/run_operator.py bench operators/add/operator.yaml --backend cuda
+    python3 tools/run_operator.py bench operators/add/operator.yaml --backend cann
 
-要选择另一组 kernel/host，可使用 --kernel 和 --host 临时覆盖，或改 operator.yaml 中对应的 default_file。
+规模和迭代数默认从 YAML 读取，也可仅覆盖本次运行，例如：
 
-## CANN
+    python3 tools/run_operator.py bench operators/add/operator.yaml --backend cuda --kernel <kernel-file> --host <host-file> --sizes 1024,1048576 --iterations 100
 
-CANN 已在 Atlas 200I DK A2 / Ascend 310B4、CANN 7.0 RC1 上实测。板端先加载 toolkit 环境，然后执行：
+结果只在真实运行后追加到 `tests/<backend>/bench/results/`。记录包含设备、规模、dtype、所选实现、工具链/runtime、延迟和带宽估算。估算带宽不等于硬件计数器读取值。
 
-    source /usr/local/Ascend/ascend-toolkit/set_env.sh
-    python3 tools/operator_cann.py build operators/add/operator.yaml --examples
-    python3 tools/operator_cann.py test operators/add/operator.yaml
-    python3 tools/operator_cann.py benchmark operators/add/operator.yaml
-    ./build/add/cann/add_kernel_v1__add_host_v1/add_demo
+## profile
 
-CANN build 使用配置选择的 kernel/host 源文件，以 bisheng -x cce 构建共享库；当前 arch 设置为已验证板卡的 dav-m300。host API 接收 ACL device pointers 和 stream，负责入队，不负责分配或同步；调用方负责内存生命周期和同步。测试使用 ACL Runtime，不依赖 PyTorch。
+    python3 tools/run_operator.py profile operators/add/operator.yaml --backend pytorch
+    python3 tools/run_operator.py profile operators/add/operator.yaml --backend triton
+    python3 tools/run_operator.py profile operators/add/operator.yaml --backend cuda
+    python3 tools/run_operator.py profile operators/add/operator.yaml --backend cann
 
-CANN v1/v2 都是 CANN 7.0 RC1 与 dav-m300 上验证的 CCE 示例：v1 逐元素计算，v2 每轮展开四个元素并检查尾部。选择 v2 可使用：
+PyTorch/Triton 使用 `torch.profiler`；CUDA 使用 Nsight Compute CLI（`ncu`）；CANN 使用板端 `msprof`。profile 参数来自 YAML，也可用 `--size` 与 `--iterations` 覆盖。trace/report 写入被忽略的 `build/${op}/profile/<backend>/`，不作为源码提交。Profile 时间不替代 bench 结果。
 
-    python3 tools/operator_cann.py build operators/add/operator.yaml --kernel add_kernel_v2.cpp --host add_host_v2.cpp --examples
-    python3 tools/operator_cann.py test operators/add/operator.yaml --kernel add_kernel_v2.cpp --host add_host_v2.cpp
-    python3 tools/operator_cann.py benchmark operators/add/operator.yaml --kernel add_kernel_v2.cpp --host add_host_v2.cpp
-    ./build/add/cann/add_kernel_v2__add_host_v2/add_demo
+## 构建与打包
 
-版本号只用于区分可选源码；v2 的多元素展开不等同于硬件 SIMD。两版均未在其他 Ascend SoC 或 SDK 上验证。缺少 CANN compiler/toolkit 时 CMake 给出明确错误；缺少运行设备时 CTest 对设备用例标为 Skip。
+CUDA/CANN 的独立 build 和 package 入口保留：
 
-## 测试、内存与性能
-
-CUDA/CANN 测试均在各自的 tests/<backend>/ 工程中。test 运行正确性和显存/设备内存评估；benchmark 根据 YAML 中 sizes、iterations 配置运行。CANN benchmark 配置为 [1024, 65536, 1048576] 个 float32 元素、每个规模 30 次 kernel 调用；v1/v2 分别生成以所选 kernel/host 组合命名的 CSV。事件计时后同步，延迟为平均设备执行时间；有效带宽用 12*N / latency 估算，不是内存控制器硬件计数器数据。
-
-CSV 结果在 tests/<backend>/<memory|performance>/results/。只有实际运行的测量会写入，设备、编译器/runtime、尺寸、显存、延迟和校验状态均随记录保留。
-
-## 打包
-
+    python3 tools/operator_cuda.py build operators/add/operator.yaml
+    python3 tools/operator_cann.py build operators/add/operator.yaml
+    python3 tools/operator_cuda.py package operators/add/operator.yaml
     python3 tools/operator_cann.py package operators/add/operator.yaml
 
-源码交付整理在 dist/。源码包本身不代表已经针对目标设备编译或验证。
+PyTorch/Triton 需要 CUDA-enabled PyTorch；Triton 版本还需安装 Triton。CUDA 需要 nvcc 和 Nsight Compute 才能 profile；CANN 命令需先加载目标板匹配的 CANN 环境。后端当前验证状态以 operator.yaml 为准；CANN scaffold 后端因 dav-m300 API/SDK 不匹配而不能执行。已验证状态不表示 Nsight Compute 硬件计数器采集成功（本轮受 WSL 计数器权限限制）。

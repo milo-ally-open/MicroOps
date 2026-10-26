@@ -1,0 +1,4 @@
+timestamp_utc,operator,backend,implementation,device,input_size,dtype,torch_version,triton_version,cuda_runtime,warmup,iterations,peak_allocated_bytes,estimated_bytes_per_iteration,average_latency_us,effective_bandwidth_GBps
+2026-10-25T16:56:53.281995+00:00,mul,pytorch,src/pytorch/mul_pytorch_v1.py,NVIDIA GeForce RTX 4060 Laptop GPU,1024,float32,2.14.1+cu126,not_applicable,12.6,20,100,12288,12288,12.687360048294067,0.9685229987346529
+2026-10-25T16:56:53.287680+00:00,mul,pytorch,src/pytorch/mul_pytorch_v1.py,NVIDIA GeForce RTX 4060 Laptop GPU,1048576,float32,2.14.1+cu126,not_applicable,12.6,20,100,12582912,12582912,34.252800941467285,367.3542499926427
+2026-10-25T16:56:53.458494+00:00,mul,pytorch,src/pytorch/mul_pytorch_v1.py,NVIDIA GeForce RTX 4060 Laptop GPU,16777216,float32,2.14.1+cu126,not_applicable,12.6,20,100,201326592,201326592,1336.8934631347656,150.59284643963082

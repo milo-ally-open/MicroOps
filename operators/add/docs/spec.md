@@ -27,8 +27,9 @@
 
 ## 后端状态
 
-- CUDA：标量与向量化两组 kernel/host 源文件均在 nvcc 12.6、CUDA Runtime 12.6 和 RTX 4060 Laptop GPU 上构建，并通过 correctness 与内存测试。benchmark 的真实记录在 CUDA 测试结果目录。
-- CANN：v1/v2 均已在 Atlas 200I DK A2（Ascend 310B4）、CANN 7.0 RC1、dav-m300 上构建运行，通过空输入、单元素、非整齐尾部、非法参数测试；设备内存评估和按源码组合区分的性能记录在 CANN 测试结果目录。v2 是四元素展开候选，不宣称使用硬件 SIMD，也未在其他 SDK/SoC 验证。
+- CUDA：v1/v2 已在 nvcc 12.6.85、CUDA Runtime 12.6 和 RTX 4060 Laptop GPU 上构建，并通过设备正确性、内存与 benchmark 检查。Nsight Compute 硬件计数器采集受 WSL 权限限制，不能据此声称 CUDA counter profile 完成。
+- CANN：v1/v2 已在 Atlas 200I DK A2（310B4）、CANN 7.0.RC1 / dav-m300 上构建并通过设备正确性、内存与 benchmark 检查；可用板端 profile 由 msprof 采集。
+- PyTorch 与 Triton：GPU-only 实现已在 RTX 4060 Laptop GPU 上通过 correctness、benchmark 和 torch.profiler profile。
 
 ## 验收标准
 
@@ -36,3 +37,7 @@
 - 内存评估记录输入规模、三缓冲理论申请量、设备总内存和分配前/后/释放后的可用量。
 - 性能评估记录文件选择、设备、输入规模、dtype、编译器/runtime、迭代数、事件计时延迟、估算有效带宽和校验状态。有效带宽按 float32 加法每元素读两次、写一次估算 12*N 字节，不是硬件计数器测得的 DRAM 带宽。
 - 缺少工具链时构建明确失败；缺少设备时设备测试显示 Skip，不计为通过。
+
+## PyTorch / Triton 实现状态
+
+PyTorch 与 Triton 源码入口登记在 operator.yaml 的 frameworks.pytorch 和 frameworks.triton 下，均提供 CUDA GPU 上连续一维 float32 实现。两个后端已在 RTX 4060 Laptop GPU 上完成 test、bench 和 torch.profiler profile；性能记录位于各自 tests/pytorch/bench/results/ 与 tests/triton/bench/results/。
