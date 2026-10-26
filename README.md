@@ -47,13 +47,6 @@ MicroOps 是一个面向 AI Infra 学习与实践的算子仓库，用于探索 
 
 bench 默认规模、预热和迭代次数记录在对应 `operator.yaml` 中；实际测量才会追加 CSV 到 `operators/<op>/tests/<backend>/bench/results/`。四套实现共用 `test`、`bench`、`profile` 三个入口，详见 [docs/testing.md](docs/testing.md)。
 
-## CPU-only 环境说明
-
-CPU-only 主机可查看源码、配置和文档，但不能运行后端工具。两个后端工具都会先检查对应编译器；缺少 CUDA Toolkit 或 CANN 环境时，连 list/package 也会明确拒绝运行。仓库当前没有 CPU 算子执行后端。
-
-    cat operators/add/operator.yaml
-    less operators/add/docs/spec.md
-
 ## CUDA 环境
 
 需要 CUDA Toolkit/nvcc、CMake 3.21+ 和 C++17 host 编译器：
