@@ -15,3 +15,7 @@ class MulV1Walkthrough(ElementwiseV1Scene):
     OUTPUTS = ("C[0]=6", "C[1]=-6", "C[2]=-1.5", "C[3]=1")
     CODE = "C[idx] = A[idx] * B[idx];"
     BINARY = True
+    CUDA_DISPATCH_THRESHOLD = 262144
+    TRITON_SMALL_BLOCK = 512
+    TRITON_LARGE_BLOCK = 2048
+    TRITON_THRESHOLD = 8388608

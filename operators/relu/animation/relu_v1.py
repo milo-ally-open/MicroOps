@@ -15,5 +15,8 @@ class ReluV1Walkthrough(ElementwiseV1Scene):
     OUTPUTS = ("Y[0]=0", "Y[1]=0", "Y[2]=0.5", "Y[3]=2")
     CODE = "Y[idx] = (x < 0.0f ? 0.0f : x);"
     GRAPH_KEY = "relu"
+    TRITON_SMALL_BLOCK = 512
+    TRITON_LARGE_BLOCK = 2048
+    TRITON_THRESHOLD = 8388608
     GRAPH_Y_RANGE = (-0.5, 4.5)
     GRAPH_NOTE = "x < 0 映射到 0；其他值原样返回。有序比较对 NaN 为假，因此 NaN 和 -0 都保留。"

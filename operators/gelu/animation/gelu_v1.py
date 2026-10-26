@@ -14,5 +14,8 @@ class GeluV1Walkthrough(ElementwiseV1Scene):
     OUTPUTS = ("Y[0]≈-0.0454", "Y[1]≈-0.1543", "Y[2]≈0.3457", "Y[3]≈1.9546")
     CODE = "0.5f*x*(1.0f+tanhf(0.79788456f*(x+0.044715f*x*x*x)))"
     GRAPH_KEY = "gelu"
+    TRITON_SMALL_BLOCK = 1024
+    TRITON_LARGE_BLOCK = 2048
+    TRITON_THRESHOLD = 8388608
     GRAPH_Y_RANGE = (-0.5, 4.5)
     GRAPH_NOTE = "曲线按 CUDA v1 中的 tanh 近似公式计算，并非精确 erf 形式。"

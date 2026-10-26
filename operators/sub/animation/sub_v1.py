@@ -15,3 +15,7 @@ class SubV1Walkthrough(ElementwiseV1Scene):
     OUTPUTS = ("C[0]=4", "C[1]=-6", "C[2]=5", "C[3]=6")
     CODE = "C[idx] = A[idx] - B[idx];"
     BINARY = True
+    CUDA_DISPATCH_THRESHOLD = 262144
+    TRITON_SMALL_BLOCK = 512
+    TRITON_LARGE_BLOCK = 2048
+    TRITON_THRESHOLD = 8388608

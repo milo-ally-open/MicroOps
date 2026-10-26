@@ -15,3 +15,6 @@ class DivV1Walkthrough(ElementwiseV1Scene):
     OUTPUTS = ("C[0]=-4", "C[1]=1.5", "C[2]=3", "C[3]=0.25")
     CODE = "C[idx] = A[idx] / B[idx];"
     BINARY = True
+    TRITON_SMALL_BLOCK = 512
+    TRITON_LARGE_BLOCK = 2048
+    TRITON_THRESHOLD = 8388608

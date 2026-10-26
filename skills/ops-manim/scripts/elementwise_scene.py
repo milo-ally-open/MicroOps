@@ -36,6 +36,10 @@ class ElementwiseV1Scene(Scene):
     GRAPH_KEY: str | None = None
     GRAPH_Y_RANGE = (-2.0, 2.0)
     GRAPH_NOTE = ""
+    CUDA_DISPATCH_THRESHOLD: int | None = None
+    TRITON_SMALL_BLOCK = 512
+    TRITON_LARGE_BLOCK = 512
+    TRITON_THRESHOLD = 8_388_608
 
     GRAPH_FUNCTIONS = {
         "relu": lambda x: max(0.0, x),
@@ -55,6 +59,8 @@ class ElementwiseV1Scene(Scene):
             self.binary_story()
         self.cuda_story()
         self.optimization_story()
+        self.cuda_dispatch_story()
+        self.triton_tuning_story()
         if getattr(self, "FRAMEWORK_OPTIMIZATION", None) == "relu_fusion":
             self.relu_fusion_story()
         self.ending()
@@ -457,6 +463,98 @@ class ElementwiseV1Scene(Scene):
         self.play(FadeIn(owner), FadeIn(tail), FadeIn(traffic), FadeIn(caveat), run_time=0.65)
         self.wait(0.9)
         self.play(FadeOut(VGroup(title, title_line, vectors, owner, tail, traffic, caveat)), run_time=0.45)
+
+    def cuda_dispatch_story(self):
+        """Explain the measured size-based path used by Add/Sub/Mul CUDA v3."""
+        threshold = self.CUDA_DISPATCH_THRESHOLD
+        if threshold is None:
+            return
+
+        title = self.header("CUDA v3：由 host 按 N 选择每线程工作量")
+        rule = Text(f"N < {threshold:,}  →  v1       N ≥ {threshold:,}  →  v2",
+                    font=FONT_CODE, font_size=24, color=AMBER)
+        rule.scale(min(1, 11.6 / rule.width)).move_to(UP * 1.86)
+
+        small = self.hardware_card(
+            "较小输入 · N=65,536",
+            ["v1 · 256 threads/block", "1 thread → 1 element", "256 blocks"],
+            BLUE, width=4.7)
+        large = self.hardware_card(
+            "较大输入 · N=1,048,576",
+            ["v2 · 256 threads/block", "1 thread → up to 4 values", "1,024 blocks"],
+            GREEN, width=4.7)
+        choices = VGroup(small, large).arrange(RIGHT, buff=0.65).move_to(UP * 0.15)
+
+        # Four boxes stand for four consecutive elements owned by one logical
+        # v2 thread; they are schematic and are not a timing diagram.
+        values = VGroup(*[
+            RoundedRectangle(width=0.62, height=0.48, corner_radius=0.07,
+                             stroke_color=GREEN, fill_color=PANEL, fill_opacity=0.95)
+            for _ in range(4)
+        ]).arrange(RIGHT, buff=0.08).move_to(DOWN * 1.42 + RIGHT * 2.75)
+        for i, box in enumerate(values):
+            box.add(Text(f"i+{i}", font=FONT_CODE, font_size=12, color=WHITE).move_to(box))
+        vector_label = Text("同一逻辑线程处理相邻 float4 元素", font=FONT_CJK,
+                            font_size=16, color=GREEN).next_to(values, DOWN, buff=0.15)
+        note = Text("阈值来自交错规模 sweep：中等规模 v2 有优势；超大规模差异趋小。",
+                    font=FONT_CJK, font_size=16, color=MUTED).to_edge(DOWN, buff=0.3)
+        self.play(FadeIn(title), Write(rule), run_time=0.65)
+        self.play(FadeIn(choices[0], shift=UP * 0.12), FadeIn(choices[1], shift=UP * 0.12),
+                  run_time=0.75)
+        self.play(LaggedStart(*[FadeIn(box, shift=RIGHT * 0.08) for box in values],
+                              lag_ratio=0.12), FadeIn(vector_label), run_time=0.65)
+        self.play(FadeIn(note), run_time=0.45)
+        self.wait(0.85)
+        self.play(FadeOut(VGroup(title, rule, choices, values, vector_label, note)), run_time=0.45)
+
+    def triton_tuning_story(self):
+        """Show a Triton program's logical tile and this operator's YAML tuning."""
+        small_block = int(self.TRITON_SMALL_BLOCK)
+        large_block = int(self.TRITON_LARGE_BLOCK)
+        threshold = int(self.TRITON_THRESHOLD)
+        title = self.header("Triton v2：调的是每个 program 覆盖的向量 tile")
+
+        threshold_text = Text(f"N < {threshold:,} → B={small_block}     N ≥ {threshold:,} → B={large_block}",
+                              font=FONT_CODE, font_size=22, color=AMBER)
+        threshold_text.scale(min(1, 11.8 / threshold_text.width)).move_to(UP * 1.9)
+
+        n = 16_777_216
+        tuned_programs = math.ceil(n / large_block)
+        baseline_programs = math.ceil(n / small_block)
+        labels = VGroup(
+            Text(f"同一 N={n:,} 向量 · 基准 B={small_block} → {baseline_programs:,} 个逻辑 program",
+                 font=FONT_CODE, font_size=14, color=MUTED),
+            Text(f"同一 N={n:,} 向量 · 调优 B={large_block} → {tuned_programs:,} 个逻辑 program",
+                 font=FONT_CODE, font_size=14, color=GREEN),
+        ).arrange(DOWN, buff=0.18).move_to(UP * 1.14)
+
+        rows = VGroup()
+        for label, block, color in (("baseline", small_block, BLUE), ("tuned", large_block, GREEN)):
+            cells = VGroup(*[
+                RoundedRectangle(width=1.35, height=0.7, corner_radius=0.08,
+                                 stroke_color=color, fill_color=PANEL, fill_opacity=0.9)
+                for _ in range(4)
+            ]).arrange(RIGHT, buff=0.13)
+            for i, cell in enumerate(cells):
+                cell.add(Text(f"{label}\n{i}×B …", font=FONT_CODE, font_size=12,
+                              color=WHITE).move_to(cell))
+            rows.add(cells)
+        rows.arrange(DOWN, buff=0.22).move_to(DOWN * 0.12)
+
+        formula = Text("offset = program_id × B + arange(B)    ·    mask: offset < N",
+                       font=FONT_CODE, font_size=14, color=AMBER)
+        formula.scale(min(1, 11.8 / formula.width)).move_to(DOWN * 1.35)
+        note = Text("B 改变 tile 大小与 program 数，不减少每元素必需的读写字节；硬件排程仅作概念示意。",
+                    font=FONT_CJK, font_size=15, color=MUTED).to_edge(DOWN, buff=0.27)
+
+        self.play(FadeIn(title), Write(threshold_text), run_time=0.65)
+        self.play(LaggedStart(*[FadeIn(item, shift=UP * 0.08) for item in labels],
+                              lag_ratio=0.13), run_time=0.7)
+        self.play(FadeIn(rows[0], shift=LEFT * 0.12), run_time=0.45)
+        self.play(TransformFromCopy(rows[0], rows[1]), run_time=0.65)
+        self.play(Write(formula), FadeIn(note), run_time=0.65)
+        self.wait(0.9)
+        self.play(FadeOut(VGroup(title, threshold_text, labels, rows, formula, note)), run_time=0.45)
 
     def relu_fusion_story(self):
         """Visualize the measured PyTorch graph simplification for ReLU."""

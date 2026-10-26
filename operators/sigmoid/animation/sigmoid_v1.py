@@ -14,5 +14,8 @@ class SigmoidV1Walkthrough(ElementwiseV1Scene):
     OUTPUTS = ("Y[0]≈0.1192", "Y[1]≈0.3775", "Y[2]≈0.6225", "Y[3]≈0.8808")
     CODE = "x>=0 ? 1/(1+expf(-x)) : expf(x)/(1+expf(x))"
     GRAPH_KEY = "sigmoid"
+    TRITON_SMALL_BLOCK = 512
+    TRITON_LARGE_BLOCK = 2048
+    TRITON_THRESHOLD = 8388608
     GRAPH_Y_RANGE = (-0.2, 1.2)
     GRAPH_NOTE = "曲线是 sigmoid；CUDA kernel 按 x 的符号选择等价形式，避免计算大幅正指数。"

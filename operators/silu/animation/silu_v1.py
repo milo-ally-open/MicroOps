@@ -14,5 +14,8 @@ class SiluV1Walkthrough(ElementwiseV1Scene):
     OUTPUTS = ("Y[0]≈-0.2384", "Y[1]≈-0.1888", "Y[2]≈0.3112", "Y[3]≈1.7616")
     CODE = "Y[idx] = x / (1.0f + expf(-x));"
     GRAPH_KEY = "silu"
+    TRITON_SMALL_BLOCK = 512
+    TRITON_LARGE_BLOCK = 512
+    TRITON_THRESHOLD = 8388608
     GRAPH_Y_RANGE = (-1.0, 4.5)
     GRAPH_NOTE = "SiLU = x·sigmoid(x)：负区间保留小幅负值，正区间逐渐接近恒等映射。"

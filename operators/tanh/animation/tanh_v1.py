@@ -14,5 +14,8 @@ class TanhV1Walkthrough(ElementwiseV1Scene):
     OUTPUTS = ("Y[0]≈-0.9640", "Y[1]≈-0.4621", "Y[2]≈0.4621", "Y[3]≈0.9640")
     CODE = "Y[idx] = tanhf(x);"
     GRAPH_KEY = "tanh"
+    TRITON_SMALL_BLOCK = 512
+    TRITON_LARGE_BLOCK = 512
+    TRITON_THRESHOLD = 8388608
     GRAPH_Y_RANGE = (-1.2, 1.2)
     GRAPH_NOTE = "输出被压缩到 (-1, 1)；输入绝对值增大时曲线逐渐饱和。"
