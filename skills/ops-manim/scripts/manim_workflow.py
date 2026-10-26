@@ -18,7 +18,7 @@ def find_repo_root() -> Path:
     for parent in Path(__file__).resolve().parents:
         if (parent / "README.md").is_file() and (parent / "operators").is_dir():
             return parent
-    raise RuntimeError("Could not locate MicroInfer root (expected README.md and operators/).")
+    raise RuntimeError("Could not locate MicroOps root (expected README.md and operators/).")
 
 
 def check_environment() -> bool:
@@ -135,7 +135,7 @@ def render_scene(source_arg: str, scene: str, quality: str, candidate: str | Non
 
 def main() -> int:
     parser = argparse.ArgumentParser(
-        description="Check Manim CE dependencies or render a MicroInfer operator scene."
+        description="Check Manim CE dependencies or render a MicroOps operator scene."
     )
     subparsers = parser.add_subparsers(dest="command", required=True)
     subparsers.add_parser("check", help="report Manim and optional rendering utilities")

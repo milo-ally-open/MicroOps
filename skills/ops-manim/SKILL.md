@@ -1,6 +1,6 @@
 ---
 name: ops-manim
-description: Design, implement, render, and review Manim Community Edition animations that teach MicroInfer CUDA and CANN operators. Use for operator animation work, not ordinary kernel implementation.
+description: Design, implement, render, and review Manim Community Edition animations that teach MicroOps CUDA and CANN operators. Use for operator animation work, not ordinary kernel implementation.
 ---
 
 # Ops Manim
@@ -165,4 +165,4 @@ When finished, report the source files changed, scene classes created, exact ren
 
 ## Inspiration
 
-This project-specific workflow takes inspiration from [Yusuke710/manim-skill](https://github.com/Yusuke710/manim-skill), especially its render-review-iterate loop. It is adapted to MicroInfer's per-operator source layout; its TTS, viewer, and session-storage tools are not required.
+This project-specific workflow takes inspiration from [Yusuke710/manim-skill](https://github.com/Yusuke710/manim-skill), especially its render-review-iterate loop. It is adapted to MicroOps's per-operator source layout; its TTS, viewer, and session-storage tools are not required.

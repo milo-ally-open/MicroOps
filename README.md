@@ -1,6 +1,6 @@
-# MicroInfer
+# MicroOps
 
-MicroInfer 是一个面向 AI Infra 学习与实践的算子仓库，用于探索 CUDA 与 CANN 并行计算，并以可测试、可评估、可打包的方式组织设备算子工程。仓库不维护 CPU 算子后端。当前 `add` 至 `tanh` 共九个算子已有 CUDA、CANN、PyTorch 与 Triton 实现入口；各后端验证范围见下表和对应 `operator.yaml`。
+MicroOps 是一个面向 AI Infra 学习与实践的算子仓库，用于探索 CUDA 与 CANN 并行计算，并以可测试、可评估、可打包的方式组织设备算子工程。仓库不维护 CPU 算子后端。当前 `add` 至 `tanh` 共九个算子已有 CUDA、CANN、PyTorch 与 Triton 实现入口；各后端验证范围见下表和对应 `operator.yaml`。
 
 ## 目录概览
 
