@@ -2,6 +2,37 @@
 
 本报告汇总 2026-10-14 至 2026-10-26 在实际设备上保存的 test、bench 与 profile 证据。记录按每个 CSV 中最新的对应规模行读取；这些运行不是严格同一时刻的受控对照，GPU 当时还有其他进程负载，因此适合定位主要瓶颈，不应用来宣布细微差异或跨设备排名。
 
+## 2026-10-26 优化复测
+
+本节记录本轮优化后的复核数据。WSL 使用 5 次独立 bench repetition、每次按 YAML 迭代 100 次；下表是 N=16,777,216 的延迟中位数（µs），不是不同框架间严格受控的排名。每个 repetition 的设备、版本、输入规模、有效带宽及原始延迟保存在忽略的 `build/validation/20261026/post-opt-repeat/bench-*.csv`。CUDA 与 Triton profile 均成功采集；CUDA 的 NCU counter 仍受 `ERR_NVGPUCTRPERM` 限制并回退到 Nsight Systems 时间线。18/18 个 CUDA/Triton profile 命令成功，时间线不提供 DRAM、SM/SFU、occupancy 或寄存器硬件计数器。
+
+| 算子 | PyTorch | Triton 默认 | CUDA 默认 | CUDA 默认版本 |
+|---|---:|---:|---:|---|
+| add | 1479.8 | 1237.1 | 1295.5 | v3 |
+| sub | 1253.8 | 1245.0 | 1298.8 | v3 |
+| mul | 1246.5 | 1244.0 | 1281.1 | v3 |
+| div | 1265.3 | 1249.3 | 1301.4 | v1 |
+| relu | 827.2 | 853.1 | 843.4 | v1 |
+| gelu | 847.7 | 857.0 | 834.5 | v1 |
+| silu | 838.4 | 849.6 | 838.7 | v1 |
+| sigmoid | 833.2 | 850.4 | 841.0 | v1 |
+| tanh | 831.7 | 847.0 | 836.2 | v1 |
+
+这组结果有约 1–8% 的 repetition 波动；细小差异不作为优化结论。运行时 GPU 仍有其他图形进程，故本表仅展示当前配置的真实测量，不作跨后端或跨日期的性能排名。CPU/PyTorch、Triton 与 CUDA 的 27/27 默认正确性测试和 27/27 默认 bench 命令成功。所有 bench 均按 YAML 的输入规模执行；小尺寸包含分配和启动开销，大尺寸更能体现连续访存吞吐。
+
+### CUDA dispatch 与 Triton block-size 选择
+
+- Add/Sub/Mul 新增 CUDA v3 host dispatch：N < 262,144 走每线程一个元素的 v1，较大输入走每线程最多四元素的 float4 v2。5 轮交错实测显示 65,536 时 v2 比 v1 慢约 10–16%，而 262,144 和 1M 时 v2 更快；16M 两者中位数接近。因此阈值是实测选择，不意味着大输入普遍显著提速。v3 correctness 已通过。
+- 其他 CUDA 算子没有稳定的 v2 优势，默认保持 v1；候选文件仍可通过 YAML/CLI 单独选择。
+- Triton 每个算子新增 v2，依据 CUDA Graph block-size sweep 选择 N < 8,388,608 的小块和大输入块尺寸。每个候选先验证数值结果；测量到的收益多在几个百分点且算子/尺寸间不一致，因此将它作为当前 YAML 默认配置，但不宣称普遍提速。GELU 的小输入块为 1024，其余小输入通常为 512；大输入选择 512–2048 之间经实测的候选值。
+- PyTorch 侧除既有 ReLU `torch.relu` 单算子实现外，本轮没有发现能由算子包装层安全改变、且有 profile/bench 证据支持的通用优化。PyTorch 提供的 GPU 算子仍作为框架基线；不为了制造版本差异而引入编译开销或改变数值语义。
+
+### CANN 7.0.RC1 默认配置复核
+
+板端仍为 CANN 7.0.RC1 / bisheng 15.0.5，没有安装或升级任何软件。通过加载板端原有 `set_env.sh`，在隔离的 `/tmp/opsfromscratch-cann-251582b` 副本中执行默认版本；测试结果为 add/sub/mul/div/relu 5/5 通过，gelu/silu/sigmoid/tanh 4/4 以退出码 77 正确 Skip（状态仍是 scaffold）。五个可用算子的 bench 和 msprof profile 各 5/5 命令成功，profile 导出设备 task timeline；摘要计数器不可用时不将其当作硬件吞吐数据。隔离验证日志、CSV 和 profile 产物位于该副本被忽略的 `build/validation/20261026-final/` 与 `build/<op>/profile/cann/`。
+
+本次默认实现为 add/sub/mul/relu v2、div v1。N=1,048,576 的新 bench 记录（各 30 次设备迭代的平均延迟，单位 ms）为：add 41.795、sub 41.807、mul 41.780、div 63.523、relu 37.498。其与此前 v1/v2 配对 bench 的方向相符：Add/Sub/Mul/ReLU 采用 v2，Div 保留 v1；跨运行的板卡内存占用与负载不同，不把绝对延迟差异解释为因果加速。CANN 激活函数由于当前 7.0.RC1 + dav-m300 组合缺少可编译/可链接的设备实现，继续 scaffold。
+
 ## 验证环境与范围
 
 - GPU：NVIDIA GeForce RTX 4060 Laptop GPU；WSL2；nvcc 12.6.85、CUDA Runtime 12.6、驱动 API 12.7；PyTorch 2.14.1+cu126、Triton 3.8.0。
@@ -75,13 +106,13 @@ N=1,048,576，2026-10-26 在同一板端环境分别用 v1、v2 各测 30 次所
 | div | 3764.68 | 3847.19 |
 | relu | 2340.86 | 2116.52 |
 
-这套板卡安装的 CANN 7.0.RC1、bisheng clang 15.0.5 与 dav-m300 目标组合下，Ascend C `LocalTensor`/`TPipe` vector API 探针未能通过编译，诊断包含头文件中的 `HardEvent` 解析失败及缺失设备实现符号；安装包的 `tikcfw/impl` 也只有 `dav_c100`、`dav_m200`、`dav_c220` 分支，没有 dav-m300 实现。标量 `expf`/`tanhf` 会被判为 host 函数，改成 compiler builtin 后又留下设备链接未解析符号。额外测试的 CCE `vexp` 向量 builtin 在该目标上触发 bisheng backend lowering 错误。因此 GELU、SiLU、Sigmoid、Tanh 的 CANN 继续标记为 `scaffold`，没有 CANN 性能数据。CANN 7.0.RC1 的官方 Ascend C 指南确实列出了支持 Atlas 推理系列 AI Core 的 `Exp` 向量 API，但这不足以证明当前安装包的 dav-m300 实现可用；应以目标板实编译和设备正确性测试为准。后续需先安装或匹配包含 dav-m300 实现的 SDK，再编译最小 `Exp`/`Tanh` probe，完成 kernel、test、bench 和 profile，不能仅凭新版 API 文档把状态升级。
+这套板卡安装的 CANN 7.0.RC1、bisheng clang 15.0.5 与 dav-m300 目标组合下，Ascend C `LocalTensor`/`TPipe` vector API 探针未能通过编译，诊断包含头文件中的 `HardEvent` 解析失败及缺失设备实现符号；安装包的 `tikcfw/impl` 也只有 `dav_c100`、`dav_m200`、`dav_c220` 分支，没有 dav-m300 实现。标量 `expf`/`tanhf` 会被判为 host 函数，改成 compiler builtin 后又留下设备链接未解析符号。额外测试的 CCE `vexp` 向量 builtin 在该目标上触发 bisheng backend lowering 错误。因此 GELU、SiLU、Sigmoid、Tanh 的 CANN 继续标记为 `scaffold`，没有 CANN 性能数据。CANN 7.0.RC1 的官方 Ascend C 指南确实列出了支持 Atlas 推理系列 AI Core 的 `Exp` 向量 API，但这不足以证明当前安装包的 dav-m300 实现可用；应以目标板实编译和设备正确性测试为准。后续只在当前 CANN 7.0.RC1 环境中继续验证该目标支持的实现路径；除非用户明确要求，不升级或替换 SDK，也不凭新版 API 文档把状态升级。
 
 官方版本参考：[CANN 7.0.RC1 Ascend C 算子开发指南](https://www.hiascend.com/doc_center/source/zh/canncommercial/70RC1/operatordev/Ascendcopdevg/CANN%207.0.RC1%20Ascend%20C%E7%AE%97%E5%AD%90%E5%BC%80%E5%8F%91%E6%8C%87%E5%8D%97%2001.pdf)。
 
 ### 2026-10-26 开发板复核
 
-通过 Windows 主机连接 Atlas 200I DK A2 后确认 NPU 为 310B4、状态 OK，`npu-smi` 报告驱动工具版本 23.0.RC3；`bisheng --version` 报告 clang 15.0.5。为保护板端仓库未提交改动，验证与本轮 9 算子 CANN 工程均在 `/tmp/OpsFromScratch-full-CANN-validation` 隔离副本运行。add/sub/mul/div/relu 的 v1、v2 均通过 CANN correctness、设备内存评估、3 尺寸 bench 与 `msprof` profile。四个激活算子的 CANN `test` 构建均未通过：标准 `expf`/`tanhf` 被解析为 host 函数；改写成 `__builtin_expf`/`__builtin_tanhf` 后虽能编译，却分别在设备链接阶段留下未解析的 `expf`/`tanhf` 符号。向量 API 探针也失败：安装的 tikcpp 实现目录只有 `dav_c100`、`dav_m200`、`dav_c220` 分支，无法匹配编译器目标 `dav-m300`，出现 CCE intrinsic 签名及架构定义错误。故这轮没有把激活 CANN 标为可用，也没有记录 bench/profile 数据；应先安装一套编译器、运行时、设备支持和 Ascend C API 版本相互匹配的 SDK。
+通过 Windows 主机连接 Atlas 200I DK A2 后确认 NPU 为 310B4、状态 OK，`npu-smi` 报告驱动工具版本 23.0.RC3；`bisheng --version` 报告 clang 15.0.5。为保护板端仓库未提交改动，验证与本轮 9 算子 CANN 工程均在 `/tmp/OpsFromScratch-full-CANN-validation` 隔离副本运行。add/sub/mul/div/relu 的 v1、v2 均通过 CANN correctness、设备内存评估、3 尺寸 bench 与 `msprof` profile。四个激活算子的 CANN `test` 构建均未通过：标准 `expf`/`tanhf` 被解析为 host 函数；改写成 `__builtin_expf`/`__builtin_tanhf` 后虽能编译，却分别在设备链接阶段留下未解析的 `expf`/`tanhf` 符号。向量 API 探针也失败：安装的 tikcpp 实现目录只有 `dav_c100`、`dav_m200`、`dav_c220` 分支，无法匹配编译器目标 `dav-m300`，出现 CCE intrinsic 签名及架构定义错误。故这轮没有把激活 CANN 标为可用，也没有记录 bench/profile 数据；后续在当前 CANN 7.0.RC1 环境内继续寻找可验证的实现路径，不自行更换 SDK。
 
 ## 瓶颈判断
 

@@ -7,6 +7,7 @@ import argparse
 import csv
 import importlib.util
 import math
+import statistics
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
@@ -119,47 +120,52 @@ def command_bench(args):
     sizes = args.sizes or profile["bench"]["sizes"]
     warmup = args.warmup if args.warmup is not None else int(profile["bench"]["warmup"])
     iterations = args.iterations if args.iterations is not None else int(profile["bench"]["iterations"])
-    if iterations < 1 or warmup < 0 or any(int(n) < 0 for n in sizes):
-        raise ValueError("sizes and warmup must be non-negative; iterations must be positive")
+    repeats = args.repeats if args.repeats is not None else int(profile["bench"].get("repeats", 5))
+    if iterations < 1 or warmup < 0 or repeats < 1 or any(int(n) < 0 for n in sizes):
+        raise ValueError("sizes/warmup/repeats must be non-negative (repeats positive); iterations must be positive")
     rows = []
+    timestamp = datetime.now(timezone.utc).isoformat()
     for size_value in sizes:
         size = int(size_value)
         values = inputs_for(op, size, torch)
         for _ in range(warmup):
             runner(*values)
         torch.cuda.synchronize()
-        torch.cuda.reset_peak_memory_stats()
-        start, end = torch.cuda.Event(enable_timing=True), torch.cuda.Event(enable_timing=True)
-        start.record()
-        for _ in range(iterations):
-            runner(*values)
-        end.record()
-        torch.cuda.synchronize()
-        latency_ms = start.elapsed_time(end) / iterations
-        peak = torch.cuda.max_memory_allocated()
         bytes_per_element = int(profile["bench"]["bytes_per_element"])
         traffic = size * bytes_per_element
-        bandwidth = (traffic / (latency_ms * 1e6)) if latency_ms > 0 else math.nan
-        row = {
-            "timestamp_utc": datetime.now(timezone.utc).isoformat(),
-            "operator": op,
-            "backend": args.backend,
-            "implementation": profile["implementation"],
-            "device": torch.cuda.get_device_name(torch.cuda.current_device()),
-            "input_size": size,
-            "dtype": "float32",
-            "torch_version": torch.__version__,
-            "triton_version": _triton_version(args.backend),
-            "cuda_runtime": str(torch.version.cuda or "unknown"),
-            "warmup": warmup,
-            "iterations": iterations,
-            "peak_allocated_bytes": peak,
-            "estimated_bytes_per_iteration": traffic,
-            "average_latency_us": latency_ms * 1000.0,
-            "effective_bandwidth_GBps": bandwidth,
-        }
-        rows.append(row)
-        print(f"N={size}: {row['average_latency_us']:.3f} us, estimated {bandwidth:.3f} GB/s")
+        samples = []
+        for _ in range(repeats):
+            torch.cuda.reset_peak_memory_stats()
+            start, end = torch.cuda.Event(enable_timing=True), torch.cuda.Event(enable_timing=True)
+            start.record()
+            for _ in range(iterations):
+                runner(*values)
+            end.record()
+            torch.cuda.synchronize()
+            latency_ms = start.elapsed_time(end) / iterations
+            peak = torch.cuda.max_memory_allocated()
+            bandwidth = (traffic / (latency_ms * 1e6)) if latency_ms > 0 else math.nan
+            samples.append(latency_ms * 1000.0)
+            rows.append({
+                "timestamp_utc": timestamp,
+                "operator": op,
+                "backend": args.backend,
+                "implementation": profile["implementation"],
+                "device": torch.cuda.get_device_name(torch.cuda.current_device()),
+                "input_size": size,
+                "dtype": "float32",
+                "torch_version": torch.__version__,
+                "triton_version": _triton_version(args.backend),
+                "cuda_runtime": str(torch.version.cuda or "unknown"),
+                "warmup": warmup,
+                "iterations": iterations,
+                "peak_allocated_bytes": peak,
+                "estimated_bytes_per_iteration": traffic,
+                "average_latency_us": latency_ms * 1000.0,
+                "effective_bandwidth_GBps": bandwidth,
+            })
+        print(f"N={size}: median {statistics.median(samples):.3f} us "
+              f"(range {min(samples):.3f}–{max(samples):.3f} us, {repeats} runs)")
     result_dir = op_root / profile["bench"]["results"]
     result_dir.mkdir(parents=True, exist_ok=True)
     configured_output = Path(args.output) if args.output is not None else None
@@ -243,6 +249,7 @@ def make_parser():
             cmd.add_argument("--sizes", type=lambda v: [int(x) for x in v.split(",")], help="optional comma-separated override; defaults come from operator.yaml")
             cmd.add_argument("--warmup", type=int, help="optional warmup override")
             cmd.add_argument("--iterations", type=int, help="optional measurement iteration override")
+            cmd.add_argument("--repeats", type=int, help="optional independent measurement repeat override")
             cmd.add_argument("--output", type=Path, help="optional CSV output override")
             cmd.set_defaults(handler=command_bench)
         elif name == "profile":

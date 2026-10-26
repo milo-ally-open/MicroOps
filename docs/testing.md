@@ -20,7 +20,7 @@
 | 命令 | 目的 | 产物 |
 |---|---|---|
 | test | 构建所选实现，运行正确性和设备内存分配检查；缺少依赖/设备时明确失败或 Skip | 终端测试结果；真实设备内存检查写入 `operators/<op>/tests/<backend>/test/results/` |
-| bench | 依照 YAML 中的输入规模、预热与迭代设置测量实际执行时间和有效带宽 | 仅真实运行后写入 `operators/<op>/tests/<backend>/bench/results/` 的 CSV |
+| bench | 依照 YAML 中的输入规模、预热、迭代和 `repeats` 设置测量实际执行时间和有效带宽 | 每个 repetition 单独记录为 CSV 行；终端汇总中位数和范围 |
 | profile | 使用对应后端 profiler 采集 kernel / runtime 活动、设备指标或 trace | 写入被 `.gitignore` 忽略的 `build/<op>/profile/<backend>/` |
 
 CUDA 与 CANN 的 test/bench 由各自独立 CMake 测试工程构建。PyTorch/Triton 的 test/bench 由 Python GPU 实现入口运行。四种后端都必须是目标 GPU/NPU 后端；框架张量不允许 CPU 回退。配置中 `status` 是源码验证状态，只有实际构建、正确性测试和设备测试完成后才可更改。若所选后端标记为 `scaffold`、`not_implemented` 或 `unavailable`，统一入口会在探测工具链前输出 `SKIP`、不生成结果，并以退出码 77 结束；这不是 PASS。依赖缺失或设备不可用则报告错误，不会降级到 CPU。
@@ -36,6 +36,6 @@ CUDA 与 CANN 的 test/bench 由各自独立 CMake 测试工程构建。PyTorch/
 
 ## 结果解释
 
-bench CSV 记录设备、输入规模、dtype、所选实现、编译器/运行时版本、迭代数、分配状态、平均延迟与有效带宽。Elementwise 带宽为读写字节数除以实测时间的估算；不是硬件计数器读数。PyTorch/Triton 的 benchmark 包括 wrapper 的输出分配开销；CUDA/CANN bench harness 记录其设备缓冲区分配与执行延迟。比较不同后端时需使用相同设备、输入规模、dtype 和相近的软件环境，不能将 profile 采集期间的数值与 bench CSV 混用。
+bench CSV 记录设备、输入规模、dtype、所选实现、编译器/运行时版本、迭代数、分配状态、每次 repetition 的平均延迟与有效带宽。每个算子的 `operator.yaml` 中可通过 `bench.repeats` 分别设置独立重复次数；默认 5 次。工具不会将多次测量覆盖为单行，终端显示这些样本的中位数和最小/最大范围。Elementwise 带宽为读写字节数除以实测时间的估算；不是硬件计数器读数。PyTorch/Triton 的 benchmark 包括 wrapper 的输出分配开销；CUDA/CANN bench harness 记录其设备缓冲区分配与执行延迟。比较不同后端时需使用相同设备、输入规模、dtype 和相近的软件环境，不能将 profile 采集期间的数值与 bench CSV 混用。CANN 必须先加载与目标板匹配的现有 `set_env.sh`；脚本发现工具链或设备环境缺失时应直接失败，不能把跳过当成功。
 
 所有数据必须来自实际运行。未安装后端或没有设备时，不生成或填造性能数字；后端仍标记为 scaffold/source_only，直到完成对应验证。本轮实际运行范围、代表性测量和限制见 [性能分析](performance-analysis.md)。

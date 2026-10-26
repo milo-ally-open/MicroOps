@@ -6,6 +6,7 @@ import csv
 import json
 import platform
 import shutil
+import statistics
 import subprocess
 import sys
 from datetime import datetime, timezone
@@ -384,9 +385,13 @@ def run_bench(args):
         print("ERROR: bench requires a configured test project.", file=sys.stderr)
         return 2
     iterations = args.iterations if args.iterations is not None else bench.get("iterations", 100)
+    repeats = args.repeats if args.repeats is not None else bench.get("repeats", 5)
     sizes = args.sizes if args.sizes is not None else bench.get("sizes", [1024, 1048576])
     if not isinstance(iterations, int) or isinstance(iterations, bool) or iterations <= 0:
         print("ERROR: bench.iterations in operator.yaml must be a positive integer.", file=sys.stderr)
+        return 2
+    if not isinstance(repeats, int) or isinstance(repeats, bool) or repeats <= 0:
+        print("ERROR: bench.repeats in operator.yaml must be a positive integer.", file=sys.stderr)
         return 2
     if (not isinstance(sizes, list) or not sizes or
             any(not isinstance(size, int) or isinstance(size, bool) or size <= 0 for size in sizes)):
@@ -444,62 +449,69 @@ def run_bench(args):
                                          (result.stdout or result.stderr).splitlines()
                                          if line.strip()), "unavailable")
 
-    timestamp = datetime.now(timezone.utc).isoformat(timespec="seconds")
+    timestamp = datetime.now(timezone.utc).isoformat()
     rows = []
+    summaries = []
     for size in sizes:
-        measured = run([str(executable), str(size), str(iterations)], capture=True)
-        if measured is None:
-            return 127
-        fields = measured.stdout.strip().split("\t")
-        expected_tag = profile["result_tag"]
-        if len(fields) != 16 or fields[0] != expected_tag:
-            print(measured.stderr or f"ERROR: unexpected evaluation output: {measured.stdout!r}", file=sys.stderr)
-            return measured.returncode or 2
-        try:
-            measured_kernel, measured_host, device, runtime_version, driver_version = fields[1:6]
-            measured_size, working_set = int(fields[6]), int(fields[7])
-            memory_free_before, memory_total = int(fields[8]), int(fields[9])
-            memory_free_after_alloc, memory_free_after_release = int(fields[10]), int(fields[11])
-            allocation_status = fields[12]
-            average_latency, bandwidth = float(fields[13]), float(fields[14])
-            validation = fields[15]
-        except ValueError:
-            print(f"ERROR: malformed evaluation output: {measured.stdout!r}", file=sys.stderr)
-            return 2
-        if (measured_kernel != context["kernel_file"] or measured_host != context["host_file"] or
-                measured_size != size):
-            print("ERROR: evaluation executable reported a different source selection or input size.",
-                  file=sys.stderr)
-            return 2
-        allocation_ok = allocation_status == "allocated"
-        if allocation_ok and (measured.returncode != 0 or average_latency <= 0 or bandwidth <= 0 or validation != "passed"):
-            print(f"ERROR: evaluation failed for N={size}: {validation}", file=sys.stderr)
-            return measured.returncode or 1
-        rows.append({
-            "timestamp_utc": timestamp, "operator": context["config"]["name"],
-            "backend": context["backend_name"], "kernel_file": context["kernel_file"],
-            "host_file": context["host_file"], "device": device, "input_size": measured_size,
-            "dtype": bench.get("dtype", "float32"),
-            "compiler": bench.get("compiler", profile["compiler"]),
-            "compiler_version": compiler_version,
-            "runtime": profile["runtime_format"].format(
-                runtime_version=runtime_version, driver_version=driver_version),
-            "iterations": iterations, "working_set_bytes": working_set,
-            "device_memory_total_bytes": memory_total,
-            "device_memory_free_before_bytes": memory_free_before,
-            "device_memory_free_after_alloc_bytes": memory_free_after_alloc,
-            "device_memory_free_after_release_bytes": memory_free_after_release,
-            "allocation_status": allocation_status,
-            "average_latency_us": f"{average_latency:.6f}" if allocation_ok else "",
-            "estimated_bytes_per_iteration": working_set,
-            "effective_bandwidth_GBps": f"{bandwidth:.6f}" if allocation_ok else "",
-            "validation": validation,
-        })
-        if not allocation_ok:
-            print(f"WARNING: N={size} allocation did not fit: {allocation_status}", file=sys.stderr)
-        elif measured.returncode != 0:
-            print(measured.stderr or f"Evaluation exited {measured.returncode}", file=sys.stderr)
-            return measured.returncode
+        size_latencies = []
+        for _ in range(repeats):
+            measured = run([str(executable), str(size), str(iterations)], capture=True)
+            if measured is None:
+                return 127
+            fields = measured.stdout.strip().split("\t")
+            expected_tag = profile["result_tag"]
+            if len(fields) != 16 or fields[0] != expected_tag:
+                print(measured.stderr or f"ERROR: unexpected evaluation output: {measured.stdout!r}", file=sys.stderr)
+                return measured.returncode or 2
+            try:
+                measured_kernel, measured_host, device, runtime_version, driver_version = fields[1:6]
+                measured_size, working_set = int(fields[6]), int(fields[7])
+                memory_free_before, memory_total = int(fields[8]), int(fields[9])
+                memory_free_after_alloc, memory_free_after_release = int(fields[10]), int(fields[11])
+                allocation_status = fields[12]
+                average_latency, bandwidth = float(fields[13]), float(fields[14])
+                validation = fields[15]
+            except ValueError:
+                print(f"ERROR: malformed evaluation output: {measured.stdout!r}", file=sys.stderr)
+                return 2
+            if (measured_kernel != context["kernel_file"] or measured_host != context["host_file"] or
+                    measured_size != size):
+                print("ERROR: evaluation executable reported a different source selection or input size.",
+                      file=sys.stderr)
+                return 2
+            allocation_ok = allocation_status == "allocated"
+            if allocation_ok and (measured.returncode != 0 or average_latency <= 0 or bandwidth <= 0 or validation != "passed"):
+                print(f"ERROR: evaluation failed for N={size}: {validation}", file=sys.stderr)
+                return measured.returncode or 1
+            rows.append({
+                "timestamp_utc": timestamp, "operator": context["config"]["name"],
+                "backend": context["backend_name"], "kernel_file": context["kernel_file"],
+                "host_file": context["host_file"], "device": device, "input_size": measured_size,
+                "dtype": bench.get("dtype", "float32"),
+                "compiler": bench.get("compiler", profile["compiler"]),
+                "compiler_version": compiler_version,
+                "runtime": profile["runtime_format"].format(
+                    runtime_version=runtime_version, driver_version=driver_version),
+                "iterations": iterations, "working_set_bytes": working_set,
+                "device_memory_total_bytes": memory_total,
+                "device_memory_free_before_bytes": memory_free_before,
+                "device_memory_free_after_alloc_bytes": memory_free_after_alloc,
+                "device_memory_free_after_release_bytes": memory_free_after_release,
+                "allocation_status": allocation_status,
+                "average_latency_us": f"{average_latency:.6f}" if allocation_ok else "",
+                "estimated_bytes_per_iteration": working_set,
+                "effective_bandwidth_GBps": f"{bandwidth:.6f}" if allocation_ok else "",
+                "validation": validation,
+            })
+            if not allocation_ok:
+                print(f"WARNING: N={size} allocation did not fit: {allocation_status}", file=sys.stderr)
+            elif measured.returncode != 0:
+                print(measured.stderr or f"Evaluation exited {measured.returncode}", file=sys.stderr)
+                return measured.returncode
+            else:
+                size_latencies.append(average_latency)
+        if size_latencies:
+            summaries.append((size, statistics.median(size_latencies), min(size_latencies), max(size_latencies)))
 
     result_dir = resolve_path(context["project_root"], tests["results"]["bench"])
     output = args.output or result_dir / f"{context['selection']}.csv"
@@ -511,7 +523,9 @@ def run_bench(args):
         if write_header:
             writer.writeheader()
         writer.writerows(rows)
-    print(f"Recorded {len(rows)} real evaluation row(s) in {output}")
+    for size, median, minimum, maximum in summaries:
+        print(f"N={size}: median {median:.3f} us (range {minimum:.3f}–{maximum:.3f} us, {repeats} runs)")
+    print(f"Recorded {len(rows)} real evaluation row(s) across {repeats} repeat(s) in {output}")
     return 0
 
 

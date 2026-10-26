@@ -41,6 +41,7 @@ def make_parser() -> argparse.ArgumentParser:
         elif action == "bench":
             command.add_argument("--sizes", type=positive_csv, help="optional comma-separated size override")
             command.add_argument("--iterations", type=int, help="optional iteration override")
+            command.add_argument("--repeats", type=int, help="optional independent measurement repeat override")
             command.add_argument("--output", type=Path)
             command.add_argument("--build-dir", type=Path)
             command.add_argument("--warmup", type=int)
@@ -59,7 +60,7 @@ def run_framework(args) -> int:
     command = [sys.executable, str(TOOLS / "operator_framework.py"), args.action,
                str(args.config), "--backend", args.backend]
     if args.action == "bench":
-        for name in ("sizes", "iterations", "warmup", "output"):
+        for name in ("sizes", "iterations", "repeats", "warmup", "output"):
             value = getattr(args, name)
             if value is not None:
                 command.extend((f"--{name}", str(value)))
@@ -101,6 +102,7 @@ def run_native_backend_action(args) -> int:
         return operator_common.test_backend(common_args)
     common_args.sizes = [int(item) for item in args.sizes.split(",")] if args.sizes else None
     common_args.iterations = args.iterations
+    common_args.repeats = args.repeats
     common_args.output = args.output
     common_args.executable = None
     if args.warmup is not None:

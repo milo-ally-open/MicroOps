@@ -17,14 +17,14 @@ backends:
       dir: src/cuda/kernel
       extensions:
       - .cu
-      default_file: mul_kernel_v2.cu
+      default_file: mul_kernel_v3.cu
       cmake_variable: OPS_KERNEL_FILE
       dir_cmake_variable: OPS_KERNEL_DIR
     host:
       dir: src/cuda/host
       extensions:
       - .cu
-      default_file: mul_host_v2.cu
+      default_file: mul_host_v3.cu
       cmake_variable: OPS_HOST_FILE
       dir_cmake_variable: OPS_HOST_DIR
     build:
@@ -58,12 +58,13 @@ backends:
       - 1048576
       - 16777216
       iterations: 100
+      repeats: 5
       max_input: 2147483647
       options:
         OPS_BUILD_BENCH: true
     profile:
       tool: ncu
-      size: 65536
+      size: 1048576
       iterations: 1
       launch_skip: 10
       launch_count: 1
@@ -94,7 +95,7 @@ backends:
       - .cpp
       - .cc
       - .cxx
-      default_file: mul_kernel_v1.cpp
+      default_file: mul_kernel_v2.cpp
       cmake_variable: OPS_KERNEL_FILE
       dir_cmake_variable: OPS_KERNEL_DIR
     host:
@@ -103,7 +104,7 @@ backends:
       - .cpp
       - .cc
       - .cxx
-      default_file: mul_host_v1.cpp
+      default_file: mul_host_v2.cpp
       cmake_variable: OPS_HOST_FILE
       dir_cmake_variable: OPS_HOST_DIR
     build:
@@ -135,6 +136,7 @@ backends:
       - 65536
       - 1048576
       iterations: 30
+      repeats: 5
       max_input: 2147483647
       options:
         OPS_BUILD_BENCH: true
@@ -171,6 +173,7 @@ frameworks:
       sizes: [1024, 1048576, 16777216]
       warmup: 20
       iterations: 100
+      repeats: 5
       bytes_per_element: 12
       results: tests/pytorch/bench/results
     profile:
@@ -180,7 +183,7 @@ frameworks:
       output: build/mul/profile/pytorch
   triton:
     status: device_tested
-    implementation: src/triton/mul_triton_v1.py
+    implementation: src/triton/mul_triton_v2.py
     entry: run
     rtol: 1.0e-6
     atol: 1.0e-6
@@ -188,6 +191,7 @@ frameworks:
       sizes: [1024, 1048576, 16777216]
       warmup: 20
       iterations: 100
+      repeats: 5
       bytes_per_element: 12
       results: tests/triton/bench/results
     profile:
