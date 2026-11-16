@@ -1,2 +1,0 @@
-#pragma once
-#include "@OPS_KERNEL_DIR@/@OPS_KERNEL_FILE@"
