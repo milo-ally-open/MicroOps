@@ -27,10 +27,5 @@ __global__ void vector_add_kernel(const float* A, const float* B, float* C, int 
 
 /* Host 侧*/
 void solve(const float* A, const float* B, float* C, int N) {
-    if (N <= 1) { 
-        return; 
-    }
-    int n4 = (size_t) N >> 2;
-    int block = CEIL(n4, THREADS); 
-    vector_add_kernel<<<block, THREADS>>>(A, B, C, N);  
+
 }
