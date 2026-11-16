@@ -6,7 +6,7 @@ const int THREADS = 256;
 
 __device__ __forceinline__ uchar4 invertColor(uchar4 v) {
     return make_uchar4(255 - v.x, 255 - v.y, 255 - v.z, v.w);
-}
+} 
 
 __global__ void color_version_kernel(unsigned char* image, int nPix) {
     
