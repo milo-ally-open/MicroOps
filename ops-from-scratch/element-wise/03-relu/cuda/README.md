@@ -35,4 +35,4 @@ void solve(const float* input, float* output, int N);
 python bench.py
 ```
 
-`bench.py` 将通过 PyTorch `load_inline` 编译同目录下的 `solve.cu`，执行正确性检查并比较自定义 CUDA 实现与 PyTorch ReLU 的运行时间。当前目录仅创建了练习文件和说明，kernel 与测试代码尚未实现，因此命令暂不可运行。
+`bench.py` 通过 PyTorch `load_inline` 编译同目录下的 `solve.cu`，测试空输入、短向量、向量化边界和尾元素，并比较自定义 CUDA 实现与 PyTorch ReLU 的运行时间。`solve.cu` 仍由你完成；实现完成前，运行命令会在编译阶段报错。
