@@ -9,7 +9,6 @@ __device__ __forceinline__ float4 relu4(float4 value) {
         fmaxf(value.z, 0.0f),
         fmaxf(value.w, 0.0f));
 }
-
 __global__ void relu_kernel(const float* input, float* output, int N) {
     const size_t tid = blockDim.x * blockIdx.x + threadIdx.x;
     const size_t stride = blockDim.x * gridDim.x;

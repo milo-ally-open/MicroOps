@@ -35,4 +35,4 @@ void solve(const float* input, float* output, int N);
 python bench.py
 ```
 
-`bench.py` 通过 PyTorch `load_inline` 编译同目录下的 `solve.cu`，测试空输入、短向量、向量化边界和尾元素，并比较自定义 CUDA 实现与 PyTorch `clamp(min=0)` 的运行时间。两者计算的都是 ReLU；PyTorch 的 `clamp` 支持写入预分配输出缓冲区，便于进行相同输出分配条件下的比较。
+`bench.py` 通过 PyTorch `load_inline` 编译同目录下的 `solve.cu`，测试空输入、短向量、向量化边界和尾元素，并直接比较自定义 CUDA 实现与 `torch.relu(input)` 的运行时间。

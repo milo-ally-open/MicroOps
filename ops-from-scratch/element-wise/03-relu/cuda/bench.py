@@ -36,6 +36,6 @@ if __name__ == "__main__":
     input = (torch.arange(n, device="cuda", dtype=torch.float32) % 257) - 128
     output = torch.empty_like(input)
     print(f"Benchmark results (N={n}, dtype=float32):")
-    for stmt in ("custom(input, output)", "torch.clamp(input, min=0, out=output)"):
+    for stmt in ("custom(input, output)", "torch.relu(input)"):
         us = Timer(stmt, globals=globals()).blocked_autorange(min_run_time=0.2).median * 1e6
         print(f"  {stmt}: {us:.3f} us")
