@@ -10,6 +10,9 @@ import tempfile
 import time
 from pathlib import Path
 
+_script_start = time.perf_counter()
+print("[start] color inversion CANN benchmark; loading NumPy and PyACL", flush=True)
+
 import numpy as np
 
 try:
@@ -48,9 +51,9 @@ def compile_kernel(output):
         f"-L{CANN_ROOT / 'runtime/lib64'}",
         "-lruntime", "-lascendcl", f"-Wl,-rpath,{libraries}", "-o", str(output),
     ]
-    result = subprocess.run(command, text=True, capture_output=True)
+    result = subprocess.run(command, text=True)
     if result.returncode:
-        raise RuntimeError("CANN compilation failed:\n" + result.stdout + result.stderr)
+        raise RuntimeError(f"CANN compilation failed with exit code {result.returncode}")
 
 
 def device_buffer(array, allocations):
@@ -96,12 +99,17 @@ def main():
     context = stream = None
     with tempfile.TemporaryDirectory(prefix="microops-color-inversion-") as temp:
         library_path = Path(temp) / "libcolor_inversion.so"
+        print("[compile] compiling Ascend C kernel (compiler output follows)", flush=True)
+        compile_start = time.perf_counter()
         compile_kernel(library_path)
+        print(f"[compile] ready in {time.perf_counter() - compile_start:.2f}s", flush=True)
         library = ctypes.CDLL(str(library_path))
         launch = library.color_inversion_launch
         launch.argtypes = [ctypes.c_void_p, ctypes.c_uint32, ctypes.c_uint32,
                            ctypes.c_void_p]
         launch.restype = None
+        print("[runtime] initializing ACL and creating device context/stream", flush=True)
+        runtime_start = time.perf_counter()
         check(acl.init(), "acl.init")
         initialized = True
         try:
@@ -110,8 +118,10 @@ def main():
             check(status, "acl.rt.create_context")
             stream, status = acl.rt.create_stream()
             check(status, "acl.rt.create_stream")
+            print(f"[runtime] ready in {time.perf_counter() - runtime_start:.2f}s", flush=True)
 
             for height, width in ((1, 1), (2, 3), (33, 65)):
+                print(f"[test] checking shape=({height},{width},4)", flush=True)
                 image = rng.integers(0, 256, (height, width, 4), dtype=np.uint8)
                 dimage = device_buffer(image, allocations)
                 launch(dimage, width, height, stream)
@@ -119,22 +129,24 @@ def main():
                 np.testing.assert_array_equal(
                     copy_to_host(dimage, np.empty_like(image)), expected(image)
                 )
-            print("test successfully! shapes: (1,1,4), (2,3,4), (33,65,4); alpha preserved")
+            print("[test] passed; alpha channel preserved", flush=True)
 
             height, width, iterations = 512, 512, 20
             image = rng.integers(0, 256, (height, width, 4), dtype=np.uint8)
             dimage = device_buffer(image, allocations)
             launch(dimage, width, height, stream)
+            print("[environment] collecting device, compiler, and input details", flush=True)
+            print_environment(height, width, image.nbytes)
+            print(f"[bench] warmup shape=({height},{width},4); iterations={iterations}", flush=True)
             check(acl.rt.synchronize_stream(stream), "warmup synchronize")
+            print("[bench] warmup complete; timing launches", flush=True)
             start = time.perf_counter()
             for _ in range(iterations):
                 launch(dimage, width, height, stream)
             check(acl.rt.synchronize_stream(stream), "benchmark synchronize")
             elapsed = time.perf_counter() - start
-            print_environment(height, width, image.nbytes)
-            print(f"host launch+completion: {elapsed * 1e6 / iterations:.3f} us/op")
-            print(f"estimated read+write bandwidth: "
-                  f"{8 * width * height * iterations / elapsed / 1e9:.3f} GB/s")
+            print(f"[bench] complete in {elapsed:.3f}s; host launch+completion: {elapsed * 1e6 / iterations:.3f} us/op", flush=True)
+            print(f"[bench] estimated read+write bandwidth: {8 * width * height * iterations / elapsed / 1e9:.3f} GB/s", flush=True)
         finally:
             for pointer in reversed(allocations):
                 acl.rt.free(pointer)
@@ -145,6 +157,7 @@ def main():
             acl.rt.reset_device(DEVICE_ID)
             if initialized:
                 acl.finalize()
+            print(f"[done] total elapsed {time.perf_counter() - _script_start:.2f}s", flush=True)
 
 
 if __name__ == "__main__":
