@@ -10,9 +10,6 @@ import tempfile
 import time
 from pathlib import Path
 
-_script_start = time.perf_counter()
-print("[start] color inversion CANN benchmark; loading NumPy and PyACL", flush=True)
-
 import numpy as np
 
 try:
@@ -51,9 +48,9 @@ def compile_kernel(output):
         f"-L{CANN_ROOT / 'runtime/lib64'}",
         "-lruntime", "-lascendcl", f"-Wl,-rpath,{libraries}", "-o", str(output),
     ]
-    result = subprocess.run(command, text=True)
+    result = subprocess.run(command, text=True, capture_output=True)
     if result.returncode:
-        raise RuntimeError(f"CANN compilation failed with exit code {result.returncode}")
+        raise RuntimeError("CANN compilation failed:\n" + result.stdout + result.stderr)
 
 
 def device_buffer(array, allocations):
@@ -80,10 +77,9 @@ def print_environment(height, width, size_bytes):
     match = re.search(r"^\|\s*0\s+(\S+)\s+\|", info, re.MULTILINE)
     driver = next((line.strip().strip("|").strip() for line in info.splitlines()
                    if "npu-smi " in line), "unavailable")
-    print(f"device: {match.group(1) if match else 'NPU'}; id={DEVICE_ID}; {driver}")
-    print(f"CANN: {CANN_ROOT.name}; compiler: {compiler}; "
-          f"{version.splitlines()[0] if version else 'version unavailable'}")
-    print(f"input: shape=({height},{width},4); dtype=uint8; device buffer bytes={size_bytes}")
+    print(f"NPU={match.group(1) if match else 'NPU'} (id={DEVICE_ID}, {driver}); "
+          f"CANN={CANN_ROOT.name}; ccec={version.splitlines()[0] if version else 'unknown'}")
+    print(f"Input: shape=({height},{width},4), uint8, {size_bytes} device bytes")
 
 
 def expected(image):
@@ -99,17 +95,15 @@ def main():
     context = stream = None
     with tempfile.TemporaryDirectory(prefix="microops-color-inversion-") as temp:
         library_path = Path(temp) / "libcolor_inversion.so"
-        print("[compile] compiling Ascend C kernel (compiler output follows)", flush=True)
-        compile_start = time.perf_counter()
+        print("Compiling CANN kernel...", flush=True)
         compile_kernel(library_path)
-        print(f"[compile] ready in {time.perf_counter() - compile_start:.2f}s", flush=True)
+        print("CANN kernel ready.", flush=True)
         library = ctypes.CDLL(str(library_path))
         launch = library.color_inversion_launch
         launch.argtypes = [ctypes.c_void_p, ctypes.c_uint32, ctypes.c_uint32,
                            ctypes.c_void_p]
         launch.restype = None
-        print("[runtime] initializing ACL and creating device context/stream", flush=True)
-        runtime_start = time.perf_counter()
+        print("Initializing ACL...", flush=True)
         check(acl.init(), "acl.init")
         initialized = True
         try:
@@ -118,10 +112,8 @@ def main():
             check(status, "acl.rt.create_context")
             stream, status = acl.rt.create_stream()
             check(status, "acl.rt.create_stream")
-            print(f"[runtime] ready in {time.perf_counter() - runtime_start:.2f}s", flush=True)
-
+            print("Testing correctness...", flush=True)
             for height, width in ((1, 1), (2, 3), (33, 65)):
-                print(f"[test] checking shape=({height},{width},4)", flush=True)
                 image = rng.integers(0, 256, (height, width, 4), dtype=np.uint8)
                 dimage = device_buffer(image, allocations)
                 launch(dimage, width, height, stream)
@@ -129,24 +121,22 @@ def main():
                 np.testing.assert_array_equal(
                     copy_to_host(dimage, np.empty_like(image)), expected(image)
                 )
-            print("[test] passed; alpha channel preserved", flush=True)
+            print("Tests passed (alpha channel preserved).")
 
             height, width, iterations = 512, 512, 20
             image = rng.integers(0, 256, (height, width, 4), dtype=np.uint8)
             dimage = device_buffer(image, allocations)
             launch(dimage, width, height, stream)
-            print("[environment] collecting device, compiler, and input details", flush=True)
             print_environment(height, width, image.nbytes)
-            print(f"[bench] warmup shape=({height},{width},4); iterations={iterations}", flush=True)
             check(acl.rt.synchronize_stream(stream), "warmup synchronize")
-            print("[bench] warmup complete; timing launches", flush=True)
+            print(f"Benchmark (shape=({height},{width},4), {iterations} iterations):", flush=True)
             start = time.perf_counter()
             for _ in range(iterations):
                 launch(dimage, width, height, stream)
             check(acl.rt.synchronize_stream(stream), "benchmark synchronize")
             elapsed = time.perf_counter() - start
-            print(f"[bench] complete in {elapsed:.3f}s; host launch+completion: {elapsed * 1e6 / iterations:.3f} us/op", flush=True)
-            print(f"[bench] estimated read+write bandwidth: {8 * width * height * iterations / elapsed / 1e9:.3f} GB/s", flush=True)
+            print(f"  {elapsed * 1e6 / iterations:.3f} us/op; "
+                  f"estimated bandwidth {8 * width * height * iterations / elapsed / 1e9:.3f} GB/s")
         finally:
             for pointer in reversed(allocations):
                 acl.rt.free(pointer)
@@ -157,7 +147,6 @@ def main():
             acl.rt.reset_device(DEVICE_ID)
             if initialized:
                 acl.finalize()
-            print(f"[done] total elapsed {time.perf_counter() - _script_start:.2f}s", flush=True)
 
 
 if __name__ == "__main__":

@@ -23,17 +23,17 @@ void solve(const float* input, float* output, int N);
 ## 练习范围
 
 - 每个输出元素对应一个 ReLU 结果：负数变为 `0`，正数保持不变，零仍为零。
-- 先实现逐元素基础版本，并为任意 `N` 添加边界保护；重点检查长度不是核函数处理块大小整数倍的情况。
+- CANN kernel 逐元素读取和写入连续的 `float32` 数据，并使用 block-stride 循环覆盖任意长度。
 - 测试使用有限的 `float32` 数值，覆盖负数、零、正数以及长度 `0`、`1` 和非整齐长度。NaN 和无穷值不属于本练习的验收输入。
 - ReLU 对有限 `float32` 输入的结果应与参考结果逐元素一致。
 
 ## CANN 构建与运行
 
-需要与开发板匹配的 CANN、Ascend C 编译器和 PyACL。完成 `solve.cpp` 与 `bench.py` 后，在配置好 CANN 环境的开发板上，进入本目录运行：
+需要与开发板匹配的 CANN、Ascend C 编译器和 PyACL。在配置好 CANN 环境的开发板上，进入本目录运行：
 
 ```bash
 source /usr/local/Ascend/ascend-toolkit/set_env.sh
 python bench.py
 ```
 
-`bench.py` 计划使用 NumPy 和 PyACL 将 Ascend C kernel 编译为临时共享库，执行正确性检查和简单 benchmark，不依赖 PyTorch 或 `torch_npu`。当前目录仅创建了练习文件和说明，kernel 与测试代码尚未实现，因此命令暂不可运行；新算子也尚未在 CANN 设备上验证。
+`bench.py` 使用 NumPy 和 PyACL 将 Ascend C kernel 编译为临时共享库，执行正确性检查和简单 benchmark，不依赖 PyTorch 或 `torch_npu`。测试覆盖空输入、短向量和非整齐长度。当前实现尚未在 CANN 开发板上验证。
