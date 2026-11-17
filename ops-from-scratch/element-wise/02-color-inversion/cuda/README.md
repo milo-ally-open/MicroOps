@@ -22,4 +22,10 @@ void solve(unsigned char* image, int width, int height);
 
 当前 kernel 将每个 RGBA 像素作为一个 `uchar4`，由一个 CUDA 线程按网格步长处理一个或多个像素。输入张量形状为 `(height, width, 4)`。宽高应为正数，缓冲区需要满足 `uchar4` 对齐要求。
 
+## CUDA 构建与运行
 
+进入本目录，在 CUDA 与 PyTorch CUDA 环境配置好后运行：
+
+```bash
+python bench.py
+```

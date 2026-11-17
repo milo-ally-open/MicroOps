@@ -26,11 +26,11 @@ void solve(unsigned char* image, int width, int height);
 
 ## CANN 构建与运行
 
-在配置好与开发板匹配的 CANN 环境后，从仓库根目录运行：
+配置好与开发板匹配的 CANN 环境后，进入本目录运行：
 
 ```bash
 source /usr/local/Ascend/ascend-toolkit/set_env.sh
-python3 ops-from-scratch/element-wise/02-color-inversion/cann/bench.py
+python bench.py
 ```
 
 脚本使用 NumPy 和 CANN 提供的 PyACL，不依赖 PyTorch 或 `torch_npu`。运行时会将 CANN kernel 编译为临时共享库，执行正确性测试和简单 benchmark，退出后清理临时编译产物。测试结果会显示 NPU 型号、驱动、编译器、输入规模、设备内存大小、耗时和估算带宽。当前 kernel 按 `dav-c220` 编译，已在 Atlas 200I DK A2（310B4，CANN 7.0.RC1）验证；其他 SoC 和 CANN 版本尚未验证。

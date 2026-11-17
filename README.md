@@ -2,6 +2,16 @@
 
 MicroOps 是一个面向 AI Infra 学习与实践的算子仓库，用于探索 CUDA 与 CANN 并行计算。
 
+## 运行算子
+
+进入对应算子的 `cuda` 或 `cann` 目录后运行：
+
+```bash
+python bench.py
+```
+
+运行 CANN 算子前，先按开发板环境配置 CANN；具体依赖见对应目录的 README。
+
 
 ## 阶段一：创建练习环境（回滚到起跑线）
 

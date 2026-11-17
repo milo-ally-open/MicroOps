@@ -22,3 +22,11 @@ void solve(const float* A, const float* B, float* C, int N);
 | B | 长度为 N 的只读 float 输入向量。 |
 | C | 长度为 N 的 float 输出向量，写入 A + B。 |
 | N | 两个输入向量的元素个数。 |
+
+## CUDA 构建与运行
+
+进入本目录，在 CUDA 与 PyTorch CUDA 环境配置好后运行：
+
+```bash
+python bench.py
+```
