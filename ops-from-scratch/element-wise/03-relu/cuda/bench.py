@@ -48,7 +48,7 @@ if __name__ == "__main__":
     input = (torch.arange(n, device="cuda", dtype=torch.float32) % 257) - 128
     output = torch.empty_like(input)
     print(f"[bench] input: N={n}; dtype=float32; bytes per tensor={input.numel() * input.element_size()}", flush=True)
-    for stmt in ("custom(input, output)", "torch.relu(input, out=output)"):
+    for stmt in ("custom(input, output)", "torch.clamp(input, min=0, out=output)"):
         print(f"[bench] measuring {stmt} (warmup and adaptive timing; min 0.2s)", flush=True)
         _bench_start = time.perf_counter()
         us = Timer(stmt, globals=globals()).blocked_autorange(min_run_time=0.2).median * 1e6
