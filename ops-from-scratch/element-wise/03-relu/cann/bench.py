@@ -89,7 +89,7 @@ def main():
     allocations = []
     initialized = False
     context = stream = None
-    with tempfile.TemporaryDirectory(prefix="microops-relu-") as temp:
+    with tempfile.TemporaryDirectory(prefix="microkernel-relu-") as temp:
         library_path = Path(temp) / "librelu.so"
         print("Compiling CANN kernel...", flush=True)
         compile_kernel(library_path)

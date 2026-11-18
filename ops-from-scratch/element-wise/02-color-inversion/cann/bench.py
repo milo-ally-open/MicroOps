@@ -93,7 +93,7 @@ def main():
     allocations = []
     initialized = False
     context = stream = None
-    with tempfile.TemporaryDirectory(prefix="microops-color-inversion-") as temp:
+    with tempfile.TemporaryDirectory(prefix="microkernel-color-inversion-") as temp:
         library_path = Path(temp) / "libcolor_inversion.so"
         print("Compiling CANN kernel...", flush=True)
         compile_kernel(library_path)

@@ -90,7 +90,7 @@ def main():
     allocations = []
     initialized = False
     context = stream = None
-    with tempfile.TemporaryDirectory(prefix="microops-vector-add-") as temp:
+    with tempfile.TemporaryDirectory(prefix="microkernel-vector-add-") as temp:
         library_path = Path(temp) / "libvector_add.so"
         print("Compiling CANN kernel...", flush=True)
         compile_kernel(library_path)
